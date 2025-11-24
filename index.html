@@ -3,14 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Contas Partilhadas — Sara & Rui</title>
+  <title>Contas Partilhadas — Sara &amp; Rui</title>
 
   <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
   <style>
-    /* (estilos idênticos aos que usavas, ligeira compactação) */
     :root{--primary:#5a67d8;--accent:#38a169;--danger:#e53e3e;--text:#2d3748;--muted:#4a5568;--bg:#edf2f7;--card:#fff;--border:#e2e8f0;--r:0.5rem;--gap:1rem}
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--muted);padding:1.5rem}
@@ -80,214 +79,9 @@
     </section>
   </div>
 
-  <script>
-    // ----------------------
-    // Configurações Firebase
-    // ----------------------
-    const firebaseConfig = {
-      apiKey: "AIzaSyCle9Kx3OVD7mnZfXubKyIGW6COYrGI304",
-      authDomain: "contassararui.firebaseapp.com",
-      projectId: "contassararui",
-      storageBucket: "contassararui.firebasestorage.app",
-      messagingSenderId: "760330070358",
-      appId: "1:760330070358:web:5d1f213133bfdbe902cef7"
-    };
-
-    // Inicializar Firebase compat
-    if (typeof firebase !== 'undefined' && firebase.initializeApp) {
-      try {
-        firebase.initializeApp(firebaseConfig);
-        var db = firebase.firestore();
-        console.log('Firebase inicializado (compat).');
-      } catch (e) {
-        console.warn('Erro inicializar Firebase (provavelmente já inicializado):', e);
-      }
-    } else {
-      console.warn('SDK Firebase não encontrado — a aplicação irá funcionar apenas com localStorage.');
-      db = null;
-    }
-
-    // ----------------------
-    // Fallback: localStorage
-    // ----------------------
-    function loadLocal() {
-      try {
-        const raw = localStorage.getItem('expenses');
-        return raw ? JSON.parse(raw) : [];
-      } catch (e) { console.error(e); return []; }
-    }
-    function saveLocal(list) {
-      try { localStorage.setItem('expenses', JSON.stringify(list)); } catch(e){console.error(e);} }
-
-    // ----------------------
-    // Estado local
-    // ----------------------
-    let expenses = [];
-    const HOUSEHOLD_DOC = 'sara_rui';
-
-    // Render UI
-    function render() {
-      const list = document.getElementById('list');
-      list.innerHTML = '';
-      const loading = document.getElementById('loading-status');
-      const clearBtn = document.getElementById('clearAllBtn');
-
-      if (!expenses || expenses.length === 0) {
-        loading.textContent = 'Nenhuma despesa registada ainda.';
-        loading.style.display = 'block';
-        clearBtn.style.display = 'none';
-      } else {
-        loading.style.display = 'none';
-        clearBtn.style.display = 'block';
-      }
-
-      expenses.forEach((e, i) => {
-        const div = document.createElement('div');
-        div.className = 'expense-item';
-        const amount = parseFloat(e.amount).toFixed(2);
-        const date = e.date || new Date().toLocaleDateString('pt-PT');
-        div.innerHTML = `
-          <p><span><strong>${e.payer}</strong> pagou <strong>${amount}€</strong></span> <span class="expense-date">🗓️ ${date}</span></p>
-          <p class="description">${e.description}</p>
-          <button data-i="${i}">Remover</button>
-        `;
-        const btn = div.querySelector('button');
-        btn.addEventListener('click', () => removeExpense(i));
-        list.appendChild(div);
-      });
-
-      updateTotals();
-    }
-
-    function updateTotals(){
-      let sara=0, rui=0, total=0;
-      expenses.forEach(e=>{
-        const a = parseFloat(e.amount) || 0; total += a;
-        if (e.payer==='Sara') sara+=a; else if (e.payer==='Rui') rui+=a;
-      });
-      document.getElementById('balanceSara').textContent = sara.toFixed(2);
-      document.getElementById('balanceRui').textContent = rui.toFixed(2);
-      document.getElementById('totalSum').textContent = total.toFixed(2);
-      const diff = sara - rui; const settle = document.getElementById('settlements');
-      if (Math.abs(diff)<0.01){ settle.textContent='Tudo equilibrado.'; settle.className=''; }
-      else if (diff>0){ settle.textContent = `Rui deve pagar ${diff.toFixed(2)}€ à Sara.`; settle.className=''; }
-      else { settle.textContent = `Sara deve pagar ${(-diff).toFixed(2)}€ ao Rui.`; settle.className=''; }
-    }
-
-    // ----------------------
-    // CRUD: Firestore ou local
-    // ----------------------
-    async function addExpenseObj(obj){
-      if (db) {
-        try {
-          await db.collection('households').doc(HOUSEHOLD_DOC).collection('expenses').add(obj);
-          // Firestore listener actualizará a lista
-          return;
-        } catch(e){
-          console.error('Erro a gravar no Firestore:', e);
-          alert('Não foi possível gravar no Firebase. A despesa será guardada localmente.');
-        }
-      }
-      // fallback local
-      expenses.unshift(obj);
-      saveLocal(expenses);
-      render();
-    }
-
-    async function removeExpense(index){
-      // Se estiver ligado ao Firestore, tentamos apagar pelo id quando possível
-      const item = expenses[index];
-      if (!item) return;
-
-      if (db && item._id) {
-        try {
-          await db.collection('households').doc(HOUSEHOLD_DOC).collection('expenses').doc(item._id).delete();
-          return;
-        } catch(e){ console.warn('Erro apagar no Firestore:', e); }
-      }
-
-      // fallback: apagar local
-      if (!confirm('Tem certeza que deseja remover esta despesa?')) return;
-      expenses.splice(index,1);
-      saveLocal(expenses);
-      render();
-    }
-
-    async function clearAllExpenses(){
-      if (!confirm('🚨 ATENÇÃO: Apagar todas as despesas?')) return;
-      if (db) {
-        // apagar todos os docs da coleção (cuidado com regras / custos)
-        try {
-          const collRef = db.collection('households').doc(HOUSEHOLD_DOC).collection('expenses');
-          const snap = await collRef.get();
-          const batch = db.batch();
-          snap.forEach(d => batch.delete(d.ref));
-          await batch.commit();
-        } catch(e){ console.error(e); alert('Não foi possível apagar tudo no Firestore.'); }
-      }
-      // limpar local
-      expenses = [];
-      saveLocal(expenses);
-      render();
-    }
-    window.clearAllExpenses = clearAllExpenses; // expor p/ botão inline
-
-    // ----------------------
-    // Listener Firestore para updates em tempo real
-    // ----------------------
-    function startFirestoreListener(){
-      if (!db) return;
-      try{
-        db.collection('households').doc(HOUSEHOLD_DOC).collection('expenses')
-          .orderBy('date','desc')
-          .onSnapshot(snap=>{
-            const arr = [];
-            snap.forEach(doc=>{ const d = doc.data(); d._id = doc.id; arr.push(d); });
-            // Se temos dados no Firestore usamos estes como fonte da verdade
-            expenses = arr;
-            saveLocal(expenses); // manter fallback actualizado
-            render();
-          }, err=>{ console.error('onSnapshot erro:', err); });
-      }catch(e){ console.error('Erro a criar listener:', e); }
-    }
-
-    // ----------------------
-    // Form submit
-    // ----------------------
-    document.getElementById('expenseForm').addEventListener('submit', async function(ev){
-      ev.preventDefault();
-      const payer = document.getElementById('payer').value;
-      const amount = parseFloat(document.getElementById('amount').value);
-      const description = document.getElementById('description').value.trim();
-      const dateISO = new Date().toISOString().slice(0,10);
-
-      if (!payer){ alert('Selecione o pagador.'); return; }
-      if (!amount || amount <= 0){ alert('Quantia inválida.'); return; }
-      if (!description){ alert('Adicione uma descrição.'); return; }
-
-      const obj = { payer, amount: Math.round(amount*100)/100, date: dateISO, description };
-      await addExpenseObj(obj);
-
-      // resetar
-      this.reset();
-      document.getElementById('payer').value = '';
-    });
-
-    // ----------------------
-    // Inicialização
-    // ----------------------
-    (function init(){
-      // Ler local para iniciar
-      expenses = loadLocal();
-      render();
-
-      // se Firestore disponível, iniciar listener
-      if (db) startFirestoreListener();
-
-      // ligar botão limpar
-      document.getElementById('clearAllBtn').addEventListener('click', clearAllExpenses);
-    })();
-  </script>
+  <!-- o teu script.js (já com o código Firestore + local fallback) -->
+  <script src="script.js" defer></script>
 </body>
 </html>
+
 
