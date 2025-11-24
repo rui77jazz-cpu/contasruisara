@@ -50,20 +50,44 @@ async function loadExpenses() {
   });
 }
 
-// --- Ligar ao formulário ---
-document.getElementById("expenseForm").addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-
-  const payer = document.getElementById("payer").value;
-  const amount = parseFloat(document.getElementById("amount").value);
-  const date = document.getElementById("date").value;
-  const description = document.getElementById("description").value;
-
-  await addExpense(payer, amount, date, description);
-  loadExpenses();
-});
-
+// --- Ligar ao formulário e inicialização — aguardar DOM carregado ---
 document.addEventListener("DOMContentLoaded", () => {
-    loadExpenses();
+  // ligar o formulário
+  const form = document.getElementById("expenseForm");
+  if (form) {
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+
+      const payerEl = document.getElementById("payer");
+      const amountEl = document.getElementById("amount");
+      const dateEl = document.getElementById("date"); // se não tiveres campo date pode ficar vazio
+      const descriptionEl = document.getElementById("description");
+
+      const payer = payerEl ? payerEl.value : "";
+      const amount = amountEl ? parseFloat(amountEl.value) : NaN;
+      const date = dateEl ? dateEl.value : new Date().toISOString().slice(0, 10);
+      const description = descriptionEl ? descriptionEl.value : "";
+
+      if (!payer) { alert("Selecione o pagador."); return; }
+      if (!amount || amount <= 0) { alert("Quantia inválida."); return; }
+      if (!description) { alert("Adicione uma descrição."); return; }
+
+      await addExpense(payer, Math.round(amount * 100) / 100, date, description);
+      // recarregar
+      await loadExpenses();
+
+      // reset
+      form.reset();
+      if (payerEl) payerEl.value = "";
+      if (amountEl) amountEl.focus();
+    });
+  }
+
+  // ligar botão limpar (se existe)
+  const clearBtn = document.getElementById("clearAllBtn");
+  if (clearBtn) clearBtn.addEventListener("click", clearAllExpenses);
+
+  // chamar loadExpenses após o DOM estar pronto
+  loadExpenses();
 });
 
