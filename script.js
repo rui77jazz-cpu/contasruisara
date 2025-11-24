@@ -38,11 +38,10 @@ function updateTotals() {
     if (e.payer === "Rui") rui += e.amount;
   });
 
-  document.getElementById("balanceSara").textContent = sara;
-  document.getElementById("balanceRui").textContent = rui;
-  document.getElementById("totalSum").textContent = total;
+  document.getElementById("balanceSara").textContent = sara.toFixed(2);
+  document.getElementById("balanceRui").textContent = rui.toFixed(2);
+  document.getElementById("totalSum").textContent = total.toFixed(2);
 
-  // Liquidação simples
   const settle = document.getElementById("settlements");
   settle.innerHTML = "";
 
@@ -52,7 +51,7 @@ function updateTotals() {
   } else if (diff > 0) {
     settle.textContent = `Rui deve pagar ${diff.toFixed(2)}€ à Sara.`;
   } else {
-    settle.textContent = `Sara deve pagar ${(diff * -1).toFixed(2)}€ ao Rui.`;
+    settle.textContent = `Sara deve pagar ${(-diff).toFixed(2)}€ ao Rui.`;
   }
 }
 
@@ -67,7 +66,6 @@ document.getElementById("expenseForm").addEventListener("submit", function (e) {
 
   const payer = document.getElementById("payer").value;
   const amount = parseFloat(document.getElementById("amount").value);
-  const date = document.getElementById("date").value;
   const description = document.getElementById("description").value;
 
   if (isNaN(amount) || amount <= 0) {
@@ -75,7 +73,7 @@ document.getElementById("expenseForm").addEventListener("submit", function (e) {
     return;
   }
 
-  expenses.unshift({ payer, amount, date, description });
+  expenses.unshift({ payer, amount, description });
   saveExpenses(expenses);
   render();
 
@@ -83,3 +81,4 @@ document.getElementById("expenseForm").addEventListener("submit", function (e) {
 });
 
 render();
+
