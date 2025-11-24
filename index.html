@@ -6,16 +6,19 @@
     <title>Gestão de Contas Partilhadas — Sara & Rui</title>
     
     <style>
-        /* --- 1. Reset Básico e Variáveis Globais --- */
+        /* --- 1. Reset Básico e Variáveis Globais (Design Renovado) --- */
         :root {
-            --primary-color: #007bff; /* Azul para destaque */
-            --secondary-color: #28a745; /* Verde para sucesso/botões */
-            --danger-color: #dc3545; /* Vermelho para remover */
-            --text-color: #333;
-            --background-color: #f4f7f6;
-            --card-background: #ffffff;
-            --border-radius: 8px;
-            --spacing: 16px;
+            --primary-brand-color: #5a67d8; /* Roxo/Azul para destaque */
+            --accent-color: #38a169; /* Verde para ações positivas (Adicionar) */
+            --danger-color: #e53e3e; /* Vermelho para ações destrutivas (Remover/Limpar) */
+            --text-dark: #2d3748;
+            --text-light: #4a5568;
+            --bg-light: #edf2f7;
+            --bg-card: #ffffff;
+            --border-color-light: #e2e8f0;
+            --border-radius-base: 0.5rem; /* 8px */
+            --spacing-unit: 1rem; /* 16px */
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         * {
@@ -25,243 +28,311 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
+            font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-light);
             line-height: 1.6;
-            padding: 20px;
+            padding: calc(var(--spacing-unit) * 1.5);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         /* --- 2. Layout Principal --- */
         .app {
-            max-width: 700px;
+            max-width: 768px;
             margin: 0 auto;
-            background-color: var(--card-background);
-            padding: calc(var(--spacing) * 2);
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: var(--bg-card);
+            padding: calc(var(--spacing-unit) * 2);
+            border-radius: var(--border-radius-base);
+            box-shadow: var(--shadow-lg);
         }
 
         h1 {
-            color: var(--primary-color);
+            color: var(--primary-brand-color);
             text-align: center;
-            margin-bottom: calc(var(--spacing) * 1.5);
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
+            margin-bottom: calc(var(--spacing-unit) * 1.5);
+            font-size: 2.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
         }
 
         section {
-            margin-bottom: 30px;
+            margin-bottom: calc(var(--spacing-unit) * 2);
         }
 
         h2 {
-            color: var(--primary-color);
-            margin-bottom: var(--spacing);
-            border-left: 4px solid var(--secondary-color);
-            padding-left: 10px;
+            color: var(--text-dark);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-unit);
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color-light);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        h3 {
+            color: var(--text-dark);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: calc(var(--spacing-unit) * 1.5);
+            margin-bottom: var(--spacing-unit);
         }
 
         hr {
-            border: 0;
-            border-top: 1px solid #ddd;
-            margin: 25px 0;
+            border: none;
+            border-top: 1px solid var(--border-color-light);
+            margin: calc(var(--spacing-unit) * 2) 0;
+        }
+
+        /* --- Estilo de botão base (Mixins) --- */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius-base);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-accent {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
         }
 
         /* --- 3. Formulário (Adicionar Despesa) --- */
         #expenseForm {
-            display: flex;
-            flex-direction: column;
-            gap: 15px; 
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-unit);
+        }
+
+        @media (min-width: 600px) {
+            #expenseForm {
+                grid-template-columns: repeat(3, 1fr);
+                gap: calc(var(--spacing-unit) * 1.5);
+            }
+            #expenseForm button[type="submit"] {
+                grid-column: 1 / -1;
+            }
         }
 
         #expenseForm label {
-            font-weight: bold;
+            font-weight: 600;
+            color: var(--text-dark);
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 0.375rem;
         }
 
         #expenseForm input[type="text"],
         #expenseForm input[type="number"],
         #expenseForm select {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: calc(var(--border-radius) / 2);
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color-light);
+            border-radius: var(--border-radius-base);
             font-size: 1rem;
-            width: 100%;
-            transition: border-color 0.2s;
+            color: var(--text-dark);
+            background-color: var(--bg-card);
+            transition: all 0.2s ease-in-out;
         }
 
         #expenseForm input:focus,
         #expenseForm select:focus {
-            border-color: var(--primary-color);
+            border-color: var(--primary-brand-color);
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
             outline: none;
         }
-
+        
         #expenseForm button[type="submit"] {
-            background-color: var(--secondary-color);
+            /* Aplica estilos base do botão e o estilo accent */
+            padding: 1rem 1.5rem;
+            font-size: 1.125rem;
+            background-color: var(--accent-color);
             color: white;
-            padding: 12px;
-            border: none;
-            border-radius: var(--border-radius);
+            border-radius: var(--border-radius-base);
             cursor: pointer;
-            font-size: 1.1rem;
-            font-weight: bold;
-            transition: background-color 0.2s;
+            font-weight: 600;
         }
-
         #expenseForm button[type="submit"]:hover {
-            background-color: #1e7e34; 
+            background-color: #2f855a; /* Hover mais escuro */
         }
 
         /* --- 4. Lista de Despesas e Botão de Limpeza --- */
         #clearAllBtn {
-            background-color: #f44336; 
+            /* Estilo específico para botão de perigo (Limpar Tudo) */
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            background-color: var(--danger-color);
             color: white;
-            padding: 10px 15px;
             border: none;
-            border-radius: var(--border-radius);
+            border-radius: var(--border-radius-base);
             cursor: pointer;
-            font-size: 1rem;
-            font-weight: bold;
-            margin-bottom: var(--spacing);
-            width: 100%; 
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: var(--spacing-unit);
             transition: background-color 0.2s;
         }
-
         #clearAllBtn:hover {
-            background-color: #d32f2f;
+            background-color: #c53030;
         }
-        
+
         #loading-status {
-            padding: 15px;
-            background-color: #e9ecef;
-            border: 1px solid #dee2e6;
-            border-radius: var(--border-radius);
+            padding: var(--spacing-unit);
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color-light);
+            border-radius: var(--border-radius-base);
             text-align: center;
-            color: #6c757d;
-            font-size: 1.1em;
-            margin-top: 10px;
+            color: var(--text-light);
+            font-style: italic;
+            margin-top: var(--spacing-unit);
         }
 
         #list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 0.75rem;
         }
 
         .expense-item {
-            padding: 15px;
-            border: 1px solid #eee;
-            border-radius: calc(var(--border-radius) / 2);
-            background-color: #fafafa;
+            padding: var(--spacing-unit);
+            border: 1px solid var(--border-color-light);
+            border-radius: var(--border-radius-base);
+            background-color: var(--bg-card);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            
             display: flex;
-            flex-wrap: wrap; 
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column; 
+            gap: 0.5rem;
         }
 
-        .expense-item p {
-            margin: 5px 0;
+        .expense-item p.expense-info {
+            font-size: 1.1rem;
+            color: var(--text-dark);
+            font-weight: 500;
         }
 
-        .expense-item p strong {
-            color: var(--primary-color);
-        }
-
-        .expense-item button {
-            background-color: var(--danger-color);
-            color: white;
-            padding: 6px 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            margin-left: 10px;
-            transition: background-color 0.2s;
-        }
-
-        .expense-item button:hover {
-            background-color: #c82333;
+        .expense-item p.expense-info strong {
+            color: var(--primary-brand-color);
+            font-weight: 700;
         }
 
         .expense-item .description {
             font-style: italic;
-            color: #666;
-            flex-basis: 100%; 
-            order: 2;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        
+        .expense-item button { 
+            /* Botão remover de cada despesa */
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+            align-self: flex-end; /* Alinha o botão à direita em mobile */
+        }
+        .expense-item button:hover {
+            background-color: #c53030;
         }
 
         @media (min-width: 500px) {
             .expense-item {
-                display: grid;
-                grid-template-columns: 2fr 1.5fr auto; 
-                gap: 10px;
+                flex-direction: row; 
+                justify-content: space-between;
                 align-items: center;
-            }
-            .expense-item p.expense-info {
-                grid-column: 1 / 2;
-                margin: 0;
+                gap: var(--spacing-unit);
             }
             .expense-item .description {
-                grid-column: 2 / 3;
+                flex-grow: 1; 
                 text-align: left;
-                order: initial;
-                flex-basis: auto;
-                margin: 0;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
             .expense-item button {
-                grid-column: 3 / 4;
-                margin-left: 0;
+                align-self: auto;
             }
         }
 
 
         /* --- 5. Resumo e Totais --- */
-        #summary-heading {
-            color: var(--secondary-color);
+        #settlements {
+            padding: var(--spacing-unit);
+            border-radius: var(--border-radius-base);
+            font-weight: 600;
+            margin-top: var(--spacing-unit);
+            border: 1px solid transparent;
         }
 
-        /* Os estilos de settlements serão definidos dinamicamente pelo JS (updateTotals) */
-        #settlements {
-            padding: var(--spacing);
-            border-radius: var(--border-radius);
-            font-weight: bold;
-            margin-top: var(--spacing);
-            border: 1px solid transparent;
+        #settlements.balance-ok {
+            background-color: #f0fff4; 
+            color: #276749;
+            border-color: #c6f6d5;
+        }
+
+        #settlements.balance-debt {
+            background-color: #fff5f5; 
+            color: #c53030;
+            border-color: #fed7d7;
         }
 
         #balanceSara,
         #balanceRui,
         #totalSum {
-            font-weight: bold;
-            color: var(--primary-color);
-            font-size: 1.1em;
+            font-weight: 700;
+            color: var(--primary-brand-color);
+            font-size: 1.2em;
         }
 
-        .total-summary {
-            font-size: 1.2em;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px dashed #ccc;
+        p.total-summary {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-top: var(--spacing-unit);
+            padding-top: var(--spacing-unit);
+            border-top: 1px dashed var(--border-color-light);
+            color: var(--text-dark);
+        }
+
+        p.total-summary strong {
+            color: var(--accent-color);
         }
 
         /* --- 6. Responsividade --- */
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: var(--spacing-unit);
             }
 
             .app {
-                padding: var(--spacing);
+                padding: var(--spacing-unit);
                 border-radius: 0; 
+                box-shadow: none;
             }
-
+            
             h1 {
-                font-size: 1.8rem;
+                font-size: 1.75rem;
             }
         }
     </style>
@@ -295,7 +366,7 @@
                 <input 
                     id="description" 
                     type="text" 
-                    placeholder="Ex: Jantar fora ou Renda de Novembro"
+                    placeholder="Ex: Jantar fora ou Renda"
                     required
                     maxlength="100"
                 />
@@ -309,7 +380,7 @@
         <section aria-labelledby="expenses-heading">
             <h2 id="expenses-heading">🧾 Despesas Registadas</h2>
             
-            <button id="clearAllBtn" onclick="clearAllExpenses()">Limpar Todas as Despesas</button>
+            <button id="clearAllBtn" onclick="clearAllExpenses()">🚨 Limpar Todas as Despesas</button>
 
             <p id="loading-status" style="font-style: italic;">A carregar despesas...</p>
             <div id="list">
@@ -379,6 +450,7 @@
 
         function updateTotals() {
             const { sara, rui, total, diff } = calculateTotals();
+            const settle = document.getElementById("settlements");
 
             // 1. Atualizar saldos e total com 2 casas decimais
             document.getElementById("balanceSara").textContent = sara.toFixed(2);
@@ -386,19 +458,14 @@
             document.getElementById("totalSum").textContent = total.toFixed(2);
 
             // 2. Atualizar o acerto de contas (settlements)
-            const settle = document.getElementById("settlements");
+            // Remover classes anteriores
+            settle.classList.remove('balance-ok', 'balance-debt'); 
             
             if (Math.abs(diff) < 0.01) {
                 settle.textContent = "Tudo equilibrado. Não há acertos a fazer.";
-                // Estilo para sucesso (verde)
-                settle.style.backgroundColor = '#d4edda'; 
-                settle.style.color = '#155724';
-                settle.style.borderColor = '#c3e6cb';
+                settle.classList.add('balance-ok');
             } else {
-                // Estilo para aviso (vermelho/rosa)
-                settle.style.backgroundColor = '#f8d7da'; 
-                settle.style.color = '#721c24';
-                settle.style.borderColor = '#f5c6cb';
+                settle.classList.add('balance-debt');
 
                 if (diff > 0) {
                     settle.textContent = `Rui deve pagar ${diff.toFixed(2)}€ à Sara.`;
@@ -438,14 +505,16 @@
             const list = document.getElementById("list");
             list.innerHTML = ""; 
             const loadingStatus = document.getElementById("loading-status");
+            const clearBtn = document.getElementById("clearAllBtn");
+
 
             if (expenses.length === 0) {
                 loadingStatus.textContent = "Nenhuma despesa registada ainda. Comece a adicionar uma despesa!";
                 loadingStatus.style.display = 'block';
-                document.getElementById("clearAllBtn").style.display = 'none'; // Esconde o botão se a lista estiver vazia
+                clearBtn.style.display = 'none'; // Esconde o botão se a lista estiver vazia
             } else {
                 loadingStatus.style.display = 'none';
-                document.getElementById("clearAllBtn").style.display = 'block'; // Mostra o botão se houver itens
+                clearBtn.style.display = 'block'; // Mostra o botão se houver itens
             }
 
             expenses.forEach((e, i) => {
@@ -454,7 +523,7 @@
                 
                 const amountDisplay = parseFloat(e.amount).toFixed(2); 
 
-                // Usando innerHTML para simplificar a criação dos elementos internos para este exemplo de ficheiro único
+                // Usando innerHTML para simplificar a criação dos elementos internos
                 div.innerHTML = `
                     <p class="expense-info"><strong>${e.payer}</strong> pagou <strong>${amountDisplay}€</strong></p>
                     <p class="description">${e.description}</p>
