@@ -161,7 +161,6 @@
         }
         
         #expenseForm button[type="submit"] {
-            /* Aplica estilos base do botão e o estilo accent */
             padding: 1rem 1.5rem;
             font-size: 1.125rem;
             background-color: var(--accent-color);
@@ -171,12 +170,11 @@
             font-weight: 600;
         }
         #expenseForm button[type="submit"]:hover {
-            background-color: #2f855a; /* Hover mais escuro */
+            background-color: #2f855a;
         }
 
         /* --- 4. Lista de Despesas e Botão de Limpeza --- */
         #clearAllBtn {
-            /* Estilo específico para botão de perigo (Limpar Tudo) */
             padding: 0.75rem 1.5rem;
             font-size: 0.95rem;
             background-color: var(--danger-color);
@@ -226,6 +224,17 @@
             font-size: 1.1rem;
             color: var(--text-dark);
             font-weight: 500;
+            display: flex;
+            justify-content: space-between; /* Novo: Para separar a data */
+            align-items: center;
+        }
+        
+        .expense-item .expense-date { /* Novo estilo para a data */
+            font-size: 0.85rem;
+            color: #999;
+            font-weight: 400;
+            flex-shrink: 0;
+            margin-left: 10px;
         }
 
         .expense-item p.expense-info strong {
@@ -240,7 +249,6 @@
         }
         
         .expense-item button { 
-            /* Botão remover de cada despesa */
             padding: 0.5rem 0.75rem;
             font-size: 0.875rem;
             background-color: var(--danger-color);
@@ -251,7 +259,7 @@
             font-weight: 600;
             transition: background-color 0.2s;
             white-space: nowrap;
-            align-self: flex-end; /* Alinha o botão à direita em mobile */
+            align-self: flex-end; 
         }
         .expense-item button:hover {
             background-color: #c53030;
@@ -452,13 +460,10 @@
             const { sara, rui, total, diff } = calculateTotals();
             const settle = document.getElementById("settlements");
 
-            // 1. Atualizar saldos e total com 2 casas decimais
             document.getElementById("balanceSara").textContent = sara.toFixed(2);
             document.getElementById("balanceRui").textContent = rui.toFixed(2);
             document.getElementById("totalSum").textContent = total.toFixed(2);
 
-            // 2. Atualizar o acerto de contas (settlements)
-            // Remover classes anteriores
             settle.classList.remove('balance-ok', 'balance-debt'); 
             
             if (Math.abs(diff) < 0.01) {
@@ -511,10 +516,10 @@
             if (expenses.length === 0) {
                 loadingStatus.textContent = "Nenhuma despesa registada ainda. Comece a adicionar uma despesa!";
                 loadingStatus.style.display = 'block';
-                clearBtn.style.display = 'none'; // Esconde o botão se a lista estiver vazia
+                clearBtn.style.display = 'none'; 
             } else {
                 loadingStatus.style.display = 'none';
-                clearBtn.style.display = 'block'; // Mostra o botão se houver itens
+                clearBtn.style.display = 'block'; 
             }
 
             expenses.forEach((e, i) => {
@@ -522,10 +527,14 @@
                 div.classList.add("expense-item"); 
                 
                 const amountDisplay = parseFloat(e.amount).toFixed(2); 
+                // A data pode vir do local storage (string) ou ser nova (string), por isso não precisa de formatação extra aqui.
+                const dateDisplay = e.date || "S/ Data"; // Garante compatibilidade com despesas antigas sem data.
 
-                // Usando innerHTML para simplificar a criação dos elementos internos
                 div.innerHTML = `
-                    <p class="expense-info"><strong>${e.payer}</strong> pagou <strong>${amountDisplay}€</strong></p>
+                    <p class="expense-info">
+                        <span><strong>${e.payer}</strong> pagou <strong>${amountDisplay}€</strong></span>
+                        <span class="expense-date">🗓️ ${dateDisplay}</span>
+                    </p>
                     <p class="description">${e.description}</p>
                     <button onclick="removeExpense(${i})">Remover</button>
                 `;
@@ -548,6 +557,7 @@
             const payer = payerSelect.value;
             const amount = parseFloat(amountInput.value);
             const description = descriptionInput.value.trim();
+            const date = new Date().toLocaleDateString('pt-PT'); // ✨ NOVIDADE: Registar a data e hora local
 
             if (payer === "") {
                 alert("Por favor, selecione quem pagou.");
@@ -564,7 +574,8 @@
                 return;
             }
 
-            const newExpense = { payer, amount, description };
+            // ✨ NOVIDADE: Adicionar a data ao objeto da despesa
+            const newExpense = { payer, amount, description, date }; 
 
             expenses.unshift(newExpense); 
             saveExpenses(expenses);
@@ -572,7 +583,7 @@
 
             // Resetar o formulário
             this.reset();
-            payerSelect.value = ""; // Garantir que a seleção volte ao placeholder
+            payerSelect.value = ""; 
             amountInput.focus();
         });
 
