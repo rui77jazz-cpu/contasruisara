@@ -63,6 +63,7 @@ document.getElementById("expenseForm").addEventListener("submit", async (ev) => 
   loadExpenses();
 });
 
-// Quando a página abrir → carregar despesas
-loadExpenses();
+document.addEventListener("DOMContentLoaded", () => {
+    loadExpenses();
+});
 
