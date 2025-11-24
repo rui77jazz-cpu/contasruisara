@@ -225,11 +225,11 @@
             color: var(--text-dark);
             font-weight: 500;
             display: flex;
-            justify-content: space-between; /* Novo: Para separar a data */
+            justify-content: space-between; 
             align-items: center;
         }
         
-        .expense-item .expense-date { /* Novo estilo para a data */
+        .expense-item .expense-date { /* Estilo para a data */
             font-size: 0.85rem;
             color: #999;
             font-weight: 400;
@@ -527,8 +527,9 @@
                 div.classList.add("expense-item"); 
                 
                 const amountDisplay = parseFloat(e.amount).toFixed(2); 
-                // A data pode vir do local storage (string) ou ser nova (string), por isso não precisa de formatação extra aqui.
-                const dateDisplay = e.date || "S/ Data"; // Garante compatibilidade com despesas antigas sem data.
+                
+                // CORREÇÃO: Se a despesa não tiver data (for antiga), atribui a data de hoje para evitar quebra na exibição.
+                const dateDisplay = e.date || new Date().toLocaleDateString('pt-PT'); 
 
                 div.innerHTML = `
                     <p class="expense-info">
@@ -557,7 +558,7 @@
             const payer = payerSelect.value;
             const amount = parseFloat(amountInput.value);
             const description = descriptionInput.value.trim();
-            const date = new Date().toLocaleDateString('pt-PT'); // ✨ NOVIDADE: Registar a data e hora local
+            const date = new Date().toLocaleDateString('pt-PT'); // Registrar a data atual
 
             if (payer === "") {
                 alert("Por favor, selecione quem pagou.");
@@ -574,7 +575,6 @@
                 return;
             }
 
-            // ✨ NOVIDADE: Adicionar a data ao objeto da despesa
             const newExpense = { payer, amount, description, date }; 
 
             expenses.unshift(newExpense); 
