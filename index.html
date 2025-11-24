@@ -1,7 +1,53 @@
 <!doctype html>
-<html>
-  <body>
-    <h1>Testar se funciona</h1>
-    <p>Se vires isto, estamos prontos para avançar.</p>
-  </body>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Contas — Sara & Rui</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <h1>Contas — Sara &amp; Rui</h1>
+
+    <section>
+      <h2>Adicionar despesa</h2>
+      <form id="expenseForm">
+        <label>Quem pagou:
+          <select id="payer">
+            <option>Sara</option>
+            <option>Rui</option>
+          </select>
+        </label>
+
+        <label>Quantia (€):
+          <input id="amount" type="number" step="0.01">
+        </label>
+
+        <label>Descrição:
+          <input id="description" type="text">
+        </label>
+
+        <button type="submit">Adicionar</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Despesas</h2>
+      <div id="list"></div>
+    </section>
+
+    <section>
+      <h2>Resumo</h2>
+      <p>Sara: <span id="balanceSara">0</span> €</p>
+      <p>Rui: <span id="balanceRui">0</span> €</p>
+      <p>Total: <span id="totalSum">0</span> €</p>
+
+      <h3>Liquidação sugerida:</h3>
+      <div id="settlements"></div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
 </html>
