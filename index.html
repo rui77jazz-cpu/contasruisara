@@ -4,7 +4,267 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Gestão de Contas Partilhadas — Sara & Rui</title>
-    <link rel="stylesheet" href="style.css" />
+    
+    <style>
+        /* --- 1. Reset Básico e Variáveis Globais --- */
+        :root {
+            --primary-color: #007bff; /* Azul para destaque */
+            --secondary-color: #28a745; /* Verde para sucesso/botões */
+            --danger-color: #dc3545; /* Vermelho para remover */
+            --text-color: #333;
+            --background-color: #f4f7f6;
+            --card-background: #ffffff;
+            --border-radius: 8px;
+            --spacing: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        /* --- 2. Layout Principal --- */
+        .app {
+            max-width: 700px;
+            margin: 0 auto;
+            background-color: var(--card-background);
+            padding: calc(var(--spacing) * 2);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: calc(var(--spacing) * 1.5);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        section {
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing);
+            border-left: 4px solid var(--secondary-color);
+            padding-left: 10px;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid #ddd;
+            margin: 25px 0;
+        }
+
+        /* --- 3. Formulário (Adicionar Despesa) --- */
+        #expenseForm {
+            display: flex;
+            flex-direction: column;
+            gap: 15px; 
+        }
+
+        #expenseForm label {
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #expenseForm input[type="text"],
+        #expenseForm input[type="number"],
+        #expenseForm select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: calc(var(--border-radius) / 2);
+            font-size: 1rem;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        #expenseForm input:focus,
+        #expenseForm select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        #expenseForm button[type="submit"] {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        #expenseForm button[type="submit"]:hover {
+            background-color: #1e7e34; 
+        }
+
+        /* --- 4. Lista de Despesas e Botão de Limpeza --- */
+        #clearAllBtn {
+            background-color: #f44336; 
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: var(--spacing);
+            width: 100%; 
+            transition: background-color 0.2s;
+        }
+
+        #clearAllBtn:hover {
+            background-color: #d32f2f;
+        }
+        
+        #loading-status {
+            padding: 15px;
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+            text-align: center;
+            color: #6c757d;
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        #list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .expense-item {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: calc(var(--border-radius) / 2);
+            background-color: #fafafa;
+            display: flex;
+            flex-wrap: wrap; 
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .expense-item p {
+            margin: 5px 0;
+        }
+
+        .expense-item p strong {
+            color: var(--primary-color);
+        }
+
+        .expense-item button {
+            background-color: var(--danger-color);
+            color: white;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 10px;
+            transition: background-color 0.2s;
+        }
+
+        .expense-item button:hover {
+            background-color: #c82333;
+        }
+
+        .expense-item .description {
+            font-style: italic;
+            color: #666;
+            flex-basis: 100%; 
+            order: 2;
+        }
+
+        @media (min-width: 500px) {
+            .expense-item {
+                display: grid;
+                grid-template-columns: 2fr 1.5fr auto; 
+                gap: 10px;
+                align-items: center;
+            }
+            .expense-item p.expense-info {
+                grid-column: 1 / 2;
+                margin: 0;
+            }
+            .expense-item .description {
+                grid-column: 2 / 3;
+                text-align: left;
+                order: initial;
+                flex-basis: auto;
+                margin: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .expense-item button {
+                grid-column: 3 / 4;
+                margin-left: 0;
+            }
+        }
+
+
+        /* --- 5. Resumo e Totais --- */
+        #summary-heading {
+            color: var(--secondary-color);
+        }
+
+        /* Os estilos de settlements serão definidos dinamicamente pelo JS (updateTotals) */
+        #settlements {
+            padding: var(--spacing);
+            border-radius: var(--border-radius);
+            font-weight: bold;
+            margin-top: var(--spacing);
+            border: 1px solid transparent;
+        }
+
+        #balanceSara,
+        #balanceRui,
+        #totalSum {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.1em;
+        }
+
+        .total-summary {
+            font-size: 1.2em;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+        }
+
+        /* --- 6. Responsividade --- */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .app {
+                padding: var(--spacing);
+                border-radius: 0; 
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="app">
@@ -48,6 +308,9 @@
 
         <section aria-labelledby="expenses-heading">
             <h2 id="expenses-heading">🧾 Despesas Registadas</h2>
+            
+            <button id="clearAllBtn" onclick="clearAllExpenses()">Limpar Todas as Despesas</button>
+
             <p id="loading-status" style="font-style: italic;">A carregar despesas...</p>
             <div id="list">
                 </div>
@@ -70,6 +333,182 @@
         </section>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // --- Funções de Storage ---
+
+        function loadExpenses() {
+            try {
+                const data = localStorage.getItem("expenses");
+                return JSON.parse(data) || [];
+            } catch (e) {
+                console.error("Erro ao carregar despesas do localStorage:", e);
+                return [];
+            }
+        }
+
+        function saveExpenses(list) {
+            try {
+                localStorage.setItem("expenses", JSON.stringify(list));
+            } catch (e) {
+                console.error("Erro ao guardar despesas no localStorage:", e);
+                alert("Não foi possível guardar os dados.");
+            }
+        }
+
+        let expenses = loadExpenses();
+
+        // --- Lógica de Cálculo de Totais e Balanço ---
+
+        function calculateTotals() {
+            let sara = 0;
+            let rui = 0;
+            let total = 0;
+
+            expenses.forEach(e => {
+                const amount = parseFloat(e.amount);
+                if (isNaN(amount) || amount <= 0) return; 
+
+                total += amount;
+                if (e.payer === "Sara") sara += amount;
+                else if (e.payer === "Rui") rui += amount;
+            });
+            
+            const diff = sara - rui;
+            return { sara, rui, total, diff };
+        }
+
+        function updateTotals() {
+            const { sara, rui, total, diff } = calculateTotals();
+
+            // 1. Atualizar saldos e total com 2 casas decimais
+            document.getElementById("balanceSara").textContent = sara.toFixed(2);
+            document.getElementById("balanceRui").textContent = rui.toFixed(2);
+            document.getElementById("totalSum").textContent = total.toFixed(2);
+
+            // 2. Atualizar o acerto de contas (settlements)
+            const settle = document.getElementById("settlements");
+            
+            if (Math.abs(diff) < 0.01) {
+                settle.textContent = "Tudo equilibrado. Não há acertos a fazer.";
+                // Estilo para sucesso (verde)
+                settle.style.backgroundColor = '#d4edda'; 
+                settle.style.color = '#155724';
+                settle.style.borderColor = '#c3e6cb';
+            } else {
+                // Estilo para aviso (vermelho/rosa)
+                settle.style.backgroundColor = '#f8d7da'; 
+                settle.style.color = '#721c24';
+                settle.style.borderColor = '#f5c6cb';
+
+                if (diff > 0) {
+                    settle.textContent = `Rui deve pagar ${diff.toFixed(2)}€ à Sara.`;
+                } else {
+                    settle.textContent = `Sara deve pagar ${(-diff).toFixed(2)}€ ao Rui.`;
+                }
+            }
+        }
+
+        // --- Funções de Manipulação de Despesas ---
+
+        function removeExpense(i) {
+            if (!confirm("Tem certeza que deseja remover esta despesa?")) {
+                return;
+            }
+            
+            expenses.splice(i, 1);
+            saveExpenses(expenses);
+            render();
+        }
+
+        window.removeExpense = removeExpense;
+
+        function clearAllExpenses() {
+            if (!confirm("🚨 ATENÇÃO: Tem certeza que deseja APAGAR TODAS AS DESPESAS? Esta ação é irreversível.")) {
+                return;
+            }
+
+            expenses = []; 
+            localStorage.removeItem("expenses"); 
+            render(); 
+        }
+
+        window.clearAllExpenses = clearAllExpenses;
+
+        function render() {
+            const list = document.getElementById("list");
+            list.innerHTML = ""; 
+            const loadingStatus = document.getElementById("loading-status");
+
+            if (expenses.length === 0) {
+                loadingStatus.textContent = "Nenhuma despesa registada ainda. Comece a adicionar uma despesa!";
+                loadingStatus.style.display = 'block';
+                document.getElementById("clearAllBtn").style.display = 'none'; // Esconde o botão se a lista estiver vazia
+            } else {
+                loadingStatus.style.display = 'none';
+                document.getElementById("clearAllBtn").style.display = 'block'; // Mostra o botão se houver itens
+            }
+
+            expenses.forEach((e, i) => {
+                const div = document.createElement("div");
+                div.classList.add("expense-item"); 
+                
+                const amountDisplay = parseFloat(e.amount).toFixed(2); 
+
+                // Usando innerHTML para simplificar a criação dos elementos internos para este exemplo de ficheiro único
+                div.innerHTML = `
+                    <p class="expense-info"><strong>${e.payer}</strong> pagou <strong>${amountDisplay}€</strong></p>
+                    <p class="description">${e.description}</p>
+                    <button onclick="removeExpense(${i})">Remover</button>
+                `;
+
+                list.appendChild(div);
+            });
+
+            updateTotals();
+        }
+
+        // --- Inicialização e Manipulação de Formulário ---
+
+        document.getElementById("expenseForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const payerSelect = document.getElementById("payer");
+            const amountInput = document.getElementById("amount");
+            const descriptionInput = document.getElementById("description");
+
+            const payer = payerSelect.value;
+            const amount = parseFloat(amountInput.value);
+            const description = descriptionInput.value.trim();
+
+            if (payer === "") {
+                alert("Por favor, selecione quem pagou.");
+                return;
+            }
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert("Quantia inválida. Deve ser um número positivo.");
+                return;
+            }
+            
+            if (description === "") {
+                alert("Por favor, adicione uma descrição.");
+                return;
+            }
+
+            const newExpense = { payer, amount, description };
+
+            expenses.unshift(newExpense); 
+            saveExpenses(expenses);
+            render();
+
+            // Resetar o formulário
+            this.reset();
+            payerSelect.value = ""; // Garantir que a seleção volte ao placeholder
+            amountInput.focus();
+        });
+
+        // Chamada inicial
+        document.addEventListener('DOMContentLoaded', render);
+    </script>
 </body>
 </html>
