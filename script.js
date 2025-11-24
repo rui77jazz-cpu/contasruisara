@@ -9,7 +9,9 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase
-const app = firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
+
+// Obter Firestore
 const db = firebase.firestore();
 
 // --- Adicionar Despesa ---
@@ -24,6 +26,7 @@ async function addExpense(payer, amount, date, description) {
       date,
       description
     });
+
   alert("Despesa gravada no Firebase!");
 }
 
