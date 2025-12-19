@@ -26,7 +26,7 @@
     #hist-section{display:none;margin-top:1rem;padding:1rem;background:#fff;border-radius:12px;border:1px solid #e2e8f0}
     .filter-select{width:100%;padding:10px;border-radius:8px;border:1px solid #6366f1;color:#6366f1;font-weight:bold;margin-bottom:10px}
     .total-gasto-label{font-size:1.1rem;font-weight:bold;text-align:center;padding:12px;background:#f1f5f9;border-radius:8px;margin-bottom:10px}
-    .btn-report-hist{background:#3b82f6;color:#fff;border:none;padding:10px;border-radius:8px;width:100%;font-weight:bold;cursor:pointer}
+    .btn-report-hist{background:#3b82f6;color:#fff;border:none;padding:12px;border-radius:8px;width:100%;font-weight:bold;cursor:pointer;margin-top:5px}
     .btn-danger-link{background:none;border:none;color:var(--danger);font-size:0.7rem;text-decoration:underline;width:100%;margin-top:20px;cursor:pointer}
   </style>
 </head>
@@ -69,11 +69,11 @@
     <div id="hist-section">
       <p style="font-size:0.8rem;font-weight:bold;margin-bottom:5px">Relatório de Arquivados:</p>
       <select class="filter-select" id="timeFilter" onchange="consultarTotal(this.value)">
-        <option value="0">Hoje</option>
-        <option value="7">Última Semana</option>
+        <option value="1">Apenas Hoje</option>
+        <option value="7">Últimos 7 dias</option>
         <option value="15">Últimos 15 dias</option>
-        <option value="30" selected>Último Mês</option>
-        <option value="90">Último Trimestre</option>
+        <option value="30" selected>Últimos 30 dias</option>
+        <option value="90">Últimos 3 meses</option>
         <option value="365">Último Ano</option>
       </select>
       <div class="total-gasto-label">Total Gasto: <span id="histTotal">0.00</span>€</div>
