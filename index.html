@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>💰 Sara & Rui</title>
+  <title>💰 Sara & Rui - Gestão</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
@@ -14,31 +14,21 @@
     *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
     body{background:var(--bg);padding:1rem;color:#1e293b}
     .card{background:#fff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem}
-    .total-box{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:1.5rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2.2rem;font-weight:bold}
+    .total-box{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:1.2rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2rem;font-weight:bold}
     .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
-    .balance-item{padding:1rem;border-radius:0.8rem;text-align:center;background:#fff;border:1px solid #e2e8f0}
+    .balance-item{padding:0.8rem;border-radius:0.8rem;text-align:center;background:#fff;border:1px solid #e2e8f0}
     input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:16px}
     .btn-save{background:var(--accent);color:#fff;border:none;padding:1rem;border-radius:8px;font-weight:bold;width:100%;cursor:pointer}
-    
-    /* Lista com Design e Data */
     .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9}
     .exp-info{display:flex;flex-direction:column}
-    .exp-date{font-size:0.7rem;color:#94a3b8;font-weight:bold}
+    .exp-date{font-size:0.75rem;color:#6366f1;font-weight:bold}
     .exp-desc{font-size:0.95rem;color:#1e293b}
-    .exp-amt{font-weight:bold;color:#1e293b}
-
-    .v-btn{padding:12px;border:none;border-radius:8px;font-weight:600;cursor:pointer;width:100%}
+    .v-btn{padding:15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;width:100%;background:#f1f5f9;color:#64748b;transition: 0.3s}
     #hist-section{display:none;margin-top:1rem;padding:1rem;background:#fff;border-radius:12px;border:1px solid #e2e8f0}
-    
-    /* Filtros Dropdown */
-    .filter-select{background:#fff;border:1px solid #6366f1;color:#6366f1;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:10px;cursor:pointer}
-    .total-gasto-label{font-size:1.2rem;font-weight:bold;text-align:center;padding:15px;background:#f1f5f9;border-radius:8px;margin-bottom:10px}
-    
-    .grid-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
-    .btn-action{padding:12px;border-radius:8px;border:none;font-weight:bold;cursor:pointer;color:#fff}
-    .btn-blue{background:#3b82f6}
-    .btn-red{background:var(--danger)}
-    .btn-danger-link{background:none;border:none;color:var(--danger);font-size:0.75rem;text-decoration:underline;width:100%;margin-top:20px;cursor:pointer}
+    .filter-select{width:100%;padding:10px;border-radius:8px;border:1px solid #6366f1;color:#6366f1;font-weight:bold;margin-bottom:10px}
+    .total-gasto-label{font-size:1.1rem;font-weight:bold;text-align:center;padding:12px;background:#f1f5f9;border-radius:8px}
+    .btn-report{padding:12px;border-radius:8px;border:none;font-weight:bold;cursor:pointer;color:#fff;background:#3b82f6;width:100%;margin-top:10px}
+    .btn-danger-link{background:none;border:none;color:var(--danger);font-size:0.7rem;text-decoration:underline;width:100%;margin-top:20px;cursor:pointer}
   </style>
 </head>
 <body>
@@ -65,19 +55,21 @@
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <h4 style="color:#64748b">📋 Lista Atual</h4>
-      <button id="btnToggleHist" style="background:none;border:none;color:#6366f1;font-weight:bold;cursor:pointer">Análise e Arquivo 📊</button>
+      <button id="btnToggleHist" style="background:none;border:none;color:#6366f1;font-weight:bold;cursor:pointer">Arquivo Permanente 📊</button>
     </div>
     <div id="list"></div>
-    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #f1f5f9">
-      <p style="text-align:center;font-size:0.7rem;color:#94a3b8;margin-bottom:8px">APROVAÇÃO PARA FECHO</p>
+    
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:2px solid #6366f1">
+      <p style="text-align:center;font-size:0.8rem;font-weight:bold;color:#6366f1;margin-bottom:10px;text-transform:uppercase">Validar Fecho de Contas</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button id="archiveSara" class="v-btn">Sara 👩</button>
-        <button id="archiveRui" class="v-btn">Rui 👨</button>
+        <button id="archiveSara" class="v-btn">Sara 👩 (OK)</button>
+        <button id="archiveRui" class="v-btn">Rui 👨 (OK)</button>
       </div>
+      <p style="font-size:0.7rem;color:#94a3b8;text-align:center;margin-top:8px">Quando ambos aprovarem, o sistema gera o relatório e limpa as contas automaticamente.</p>
     </div>
 
     <div id="hist-section">
-      <p style="font-size:0.85rem;font-weight:bold;margin-bottom:5px">Filtrar por Período ▼</p>
+      <p style="font-size:0.8rem;font-weight:bold;margin-bottom:5px">Consultar Arquivo (Estatística):</p>
       <select class="filter-select" id="timeFilter" onchange="consultarTotal(this.value)">
         <option value="0">Hoje</option>
         <option value="7">Última Semana</option>
@@ -87,16 +79,8 @@
         <option value="180">Último Semestre</option>
         <option value="365">Último Ano</option>
       </select>
-      
       <div class="total-gasto-label">Total Gasto: <span id="histTotal">0.00</span>€</div>
-      
-      <div class="grid-btns">
-        <button id="btnDownload" class="btn-action btn-blue">📥 Gerar Report</button>
-        <button id="btnClearList" class="btn-action btn-red">🗑️ Limpar Lista</button>
-      </div>
-      <p id="msgAviso" style="font-size:0.7rem;color:var(--danger);text-align:center;margin-top:8px;display:none">Aguardando aprovação de ambos para limpar.</p>
-
-      <button onclick="apagarTudoPermanente()" class="btn-danger-link">Apagar histórico permanente para sempre</button>
+      <button onclick="apagarTudoPermanente()" class="btn-danger-link">Apagar histórico permanente (Cuidado!)</button>
     </div>
   </div>
 
