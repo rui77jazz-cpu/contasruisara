@@ -1,4 +1,3 @@
-
 // --- Firebase Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyCle9Kx3OVD7mnZfXubKyIGW6COYrGI304",
@@ -10,8 +9,14 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const householdRef = db.collection("households").doc("sara_rui");
+var db = firebase.firestore();
+var householdRef = db.collection("households").doc("sara_rui");
+
+// --- ID ÚNICO DO APARELHO ---
+if (!localStorage.getItem("deviceId")) {
+  localStorage.setItem("deviceId", "dev_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now());
+}
+var myDeviceId = localStorage.getItem("deviceId");
 
 // --- APAGAR DESPESA (global) ---
 window.deleteExpense = function(id) {
@@ -20,24 +25,36 @@ window.deleteExpense = function(id) {
   }
 };
 
+// --- CALCULAR DATA DE HÁ X DIAS ---
+function getDateDaysAgo(days) {
+  var date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
 // --- ESPERAR PELO DOM ---
 document.addEventListener("DOMContentLoaded", function() {
   
-  // --- ELEMENTOS ---
   var saraBtn = document.getElementById("archiveSara");
   var ruiBtn = document.getElementById("archiveRui");
   var statusEl = document.getElementById("archive-status");
+  var currentPeriod = 7; // Período selecionado (dias)
   
   // --- ESCUTAR VOTOS EM TEMPO REAL ---
   householdRef.onSnapshot(function(doc) {
     var data = doc.data() || {};
-    var votes = data.archiveVotes || { sara: false, rui: false };
+    var votes = data.archiveVotes || { sara: null, rui: null };
     updateArchiveUI(votes);
   });
 
   function updateArchiveUI(votes) {
+    var saraVoted = votes.sara !== null;
+    var ruiVoted = votes.rui !== null;
+    var iVotedSara = votes.sara === myDeviceId;
+    var iVotedRui = votes.rui === myDeviceId;
+    
     // Botão Sara
-    if (votes.sara) {
+    if (saraVoted) {
       saraBtn.classList.add("approved");
       saraBtn.innerHTML = "👩 Sara ✓";
     } else {
@@ -47,7 +64,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     // Botão Rui
-    if (votes.rui) {
+    if (ruiVoted) {
       ruiBtn.classList.add("approved");
       ruiBtn.innerHTML = "👨 Rui ✓";
     } else {
@@ -57,18 +74,26 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     // Mensagem de status
-    if (votes.sara && votes.rui) {
+    if (saraVoted && ruiVoted) {
       statusEl.style.display = "block";
       statusEl.className = "archive-status success";
       statusEl.innerHTML = "✅ Ambos aprovaram! A arquivar...";
-    } else if (votes.sara) {
+    } else if (saraVoted) {
       statusEl.style.display = "block";
       statusEl.className = "archive-status waiting";
-      statusEl.innerHTML = "⏳ 👩 Sara já aprovou. Falta o Rui!";
-    } else if (votes.rui) {
+      if (iVotedSara) {
+        statusEl.innerHTML = "⏳ Votaste como Sara. Aguarda o Rui!";
+      } else {
+        statusEl.innerHTML = "⏳ 👩 Sara já aprovou. Falta o Rui!";
+      }
+    } else if (ruiVoted) {
       statusEl.style.display = "block";
       statusEl.className = "archive-status waiting";
-      statusEl.innerHTML = "⏳ 👨 Rui já aprovou. Falta a Sara!";
+      if (iVotedRui) {
+        statusEl.innerHTML = "⏳ Votaste como Rui. Aguarda a Sara!";
+      } else {
+        statusEl.innerHTML = "⏳ 👨 Rui já aprovou. Falta a Sara!";
+      }
     } else {
       statusEl.style.display = "none";
     }
@@ -78,14 +103,21 @@ document.addEventListener("DOMContentLoaded", function() {
   saraBtn.onclick = function() {
     householdRef.get().then(function(doc) {
       var data = doc.data() || {};
-      var votes = data.archiveVotes || { sara: false, rui: false };
+      var votes = data.archiveVotes || { sara: null, rui: null };
       
-      if (votes.sara) {
-        alert("👩 Sara já aprovou! Aguarda o Rui.");
+      // Verificar se já votou (como Sara ou Rui)
+      if (votes.sara === myDeviceId || votes.rui === myDeviceId) {
+        alert("⚠️ Este aparelho já votou! Aguarda a outra pessoa votar de outro aparelho.");
         return;
       }
       
-      votes.sara = true;
+      // Verificar se Sara já votou
+      if (votes.sara !== null) {
+        alert("👩 Sara já aprovou! Aguarda ou vota como Rui.");
+        return;
+      }
+      
+      votes.sara = myDeviceId;
       householdRef.set({ archiveVotes: votes }, { merge: true }).then(function() {
         if (votes.sara && votes.rui) {
           saraBtn.classList.add("done");
@@ -100,14 +132,21 @@ document.addEventListener("DOMContentLoaded", function() {
   ruiBtn.onclick = function() {
     householdRef.get().then(function(doc) {
       var data = doc.data() || {};
-      var votes = data.archiveVotes || { sara: false, rui: false };
+      var votes = data.archiveVotes || { sara: null, rui: null };
       
-      if (votes.rui) {
-        alert("👨 Rui já aprovou! Aguarda a Sara.");
+      // Verificar se já votou (como Sara ou Rui)
+      if (votes.sara === myDeviceId || votes.rui === myDeviceId) {
+        alert("⚠️ Este aparelho já votou! Aguarda a outra pessoa votar de outro aparelho.");
         return;
       }
       
-      votes.rui = true;
+      // Verificar se Rui já votou
+      if (votes.rui !== null) {
+        alert("👨 Rui já aprovou! Aguarda ou vota como Sara.");
+        return;
+      }
+      
+      votes.rui = myDeviceId;
       householdRef.set({ archiveVotes: votes }, { merge: true }).then(function() {
         if (votes.sara && votes.rui) {
           saraBtn.classList.add("done");
@@ -147,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function() {
       batch.commit().then(function() {
         alert("✅ " + count + " despesa(s) arquivada(s)!");
         resetVotes();
-        loadReport();
+        loadReport(currentPeriod);
       }).catch(function(error) {
         alert("Erro ao arquivar: " + error.message);
         resetVotes();
@@ -156,7 +195,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   function resetVotes() {
-    householdRef.set({ archiveVotes: { sara: false, rui: false } }, { merge: true });
+    householdRef.set({ archiveVotes: { sara: null, rui: null } }, { merge: true });
   }
 
   // --- DESPESAS EM TEMPO REAL ---
@@ -190,7 +229,6 @@ document.addEventListener("DOMContentLoaded", function() {
       list.appendChild(div);
     });
     
-    // Atualizar saldo
     document.getElementById("totalSum").textContent = total.toFixed(2);
     document.getElementById("balanceSara").textContent = totalSara.toFixed(2);
     document.getElementById("balanceRui").textContent = totalRui.toFixed(2);
@@ -246,29 +284,56 @@ document.addEventListener("DOMContentLoaded", function() {
     if (section.style.display === "none" || section.style.display === "") {
       section.style.display = "block";
       this.textContent = "📜 Esconder Histórico";
-      loadReport();
+      loadReport(currentPeriod);
     } else {
       section.style.display = "none";
       this.textContent = "📜 Ver Histórico";
     }
   };
 
-  function loadReport() {
+  // --- TABS DE PERÍODO ---
+  var periodTabs = document.querySelectorAll(".period-tab");
+  periodTabs.forEach(function(tab) {
+    tab.onclick = function() {
+      periodTabs.forEach(function(t) { t.classList.remove("active"); });
+      tab.classList.add("active");
+      currentPeriod = parseInt(tab.getAttribute("data-days"));
+      loadReport(currentPeriod);
+    };
+  });
+
+  function loadReport(days) {
     householdRef.collection("historico").get().then(function(snap) {
       var total = 0, totalSara = 0, totalRui = 0, count = 0;
+      var startDate = days > 0 ? getDateDaysAgo(days) : "1900-01-01";
       
       snap.forEach(function(doc) {
         var d = doc.data();
-        total += d.amount || 0;
-        if (d.payer === "Sara") totalSara += d.amount || 0;
-        else totalRui += d.amount || 0;
-        count++;
+        // Filtrar por data
+        if (d.date >= startDate) {
+          total += d.amount || 0;
+          if (d.payer === "Sara") totalSara += d.amount || 0;
+          else totalRui += d.amount || 0;
+          count++;
+        }
       });
+      
+      // Calcular média diária
+      var avgPerDay = days > 0 ? (total / days) : (count > 0 ? (total / 30) : 0);
       
       document.getElementById("report-total").textContent = total.toFixed(0) + " €";
       document.getElementById("report-sara").textContent = totalSara.toFixed(0) + " €";
       document.getElementById("report-rui").textContent = totalRui.toFixed(0) + " €";
-      document.getElementById("report-avg").textContent = count > 0 ? (total / 30).toFixed(1) + " €" : "0 €";
+      document.getElementById("report-avg").textContent = avgPerDay.toFixed(1) + " €";
+      
+      // Mostrar período
+      var periodText = "";
+      if (days === 0) {
+        periodText = count + " despesa(s) no total";
+      } else {
+        periodText = count + " despesa(s) nos últimos " + days + " dias";
+      }
+      document.getElementById("report-period").textContent = periodText;
     });
   }
 
