@@ -18,6 +18,7 @@
       --accent-dark:#059669;
       --danger:#ef4444;
       --danger-dark:#dc2626;
+      --warning:#f59e0b;
       --text:#1e293b;
       --muted:#64748b;
       --bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
@@ -101,13 +102,6 @@
       color:#fff;
       box-shadow:0 4px 14px rgba(16,185,129,.4);
     }
-    .btn-danger{
-      background:linear-gradient(135deg,var(--danger) 0%,var(--danger-dark) 100%);
-      color:#fff;
-      box-shadow:0 4px 14px rgba(239,68,68,.3);
-      font-size:.9rem;
-      padding:.75rem;
-    }
 
     /* Balance Display */
     .balance-grid{
@@ -180,6 +174,55 @@
     }
     .expense-item .delete-btn:hover{opacity:1}
 
+    /* Botões de Arquivar */
+    .archive-section{
+      margin-top:1rem;
+      padding-top:1rem;
+      border-top:1px solid var(--border);
+    }
+    .archive-title{
+      font-size:.85rem;
+      color:var(--muted);
+      text-align:center;
+      margin-bottom:.75rem;
+    }
+    .archive-buttons{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:.5rem;
+    }
+    .archive-btn{
+      padding:.75rem;
+      border:2px solid var(--border);
+      border-radius:.75rem;
+      background:#fff;
+      font-size:.9rem;
+      font-weight:600;
+      cursor:pointer;
+      transition:all .2s;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:.4rem;
+    }
+    .archive-btn:hover{
+      border-color:var(--muted);
+    }
+    .archive-btn.approved{
+      background:var(--warning);
+      border-color:var(--warning);
+      color:#fff;
+    }
+    .archive-btn.approved:hover{
+      background:#d97706;
+    }
+    .archive-status{
+      text-align:center;
+      font-size:.8rem;
+      color:var(--muted);
+      margin-top:.5rem;
+    }
+
     /* Tabs */
     .tabs{
       display:flex;
@@ -210,7 +253,6 @@
       display:grid;
       grid-template-columns:repeat(2,1fr);
       gap:.5rem;
-      margin-bottom:1rem;
     }
     .report-card{
       background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);
@@ -222,35 +264,13 @@
     .report-card .value{font-size:1.25rem;font-weight:800;color:var(--text)}
     .report-card .label{font-size:.7rem;color:var(--muted)}
 
-    /* History List */
-    .history-item{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:.6rem .75rem;
-      background:#f8fafc;
-      border-radius:.5rem;
-      margin-bottom:.35rem;
-      font-size:.85rem;
-    }
-    .history-item .info{color:var(--muted)}
-    .history-item .info strong{color:var(--text)}
-    .history-item .amount{font-weight:700;color:var(--primary)}
-
     #report-status{
       text-align:center;
       font-size:.8rem;
       color:var(--muted);
       padding:.5rem;
+      margin-top:.5rem;
     }
-    .no-data{
-      text-align:center;
-      padding:2rem;
-      color:var(--muted);
-      font-size:.9rem;
-    }
-    
-    #report-list{max-height:300px;overflow-y:auto}
   </style>
 </head>
 <body>
@@ -316,7 +336,16 @@
       <div class="card-title">🧾 Despesas</div>
       <p id="loading-status">A carregar...</p>
       <div id="list"></div>
-      <button id="clearAllBtn" class="btn btn-danger" style="width:100%;margin-top:.75rem">📁 Arquivar Tudo</button>
+      
+      <!-- Arquivar com dupla aprovação -->
+      <div class="archive-section">
+        <div class="archive-title">📁 Arquivar despesas (precisa dos dois)</div>
+        <div class="archive-buttons">
+          <button id="archiveSara" class="archive-btn">👩 Sara aprova</button>
+          <button id="archiveRui" class="archive-btn">👨 Rui aprova</button>
+        </div>
+        <p id="archive-status" class="archive-status"></p>
+      </div>
     </div>
 
     <!-- Relatórios -->
@@ -355,7 +384,6 @@
       </div>
 
       <p id="report-status"></p>
-      <div id="report-list"></div>
     </div>
 
   </div>
