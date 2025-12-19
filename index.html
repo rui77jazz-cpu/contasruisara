@@ -20,19 +20,16 @@
     .sara{background:#fdf2f8}.rui{background:#eff6ff}
     .expense-item{display:flex;justify-content:space-between;padding:.75rem;background:#f8fafc;border-radius:.75rem;margin-bottom:.5rem;border:1px solid #e2e8f0}
     
-    /* BOTÃO DE ARQUIVO */
-    #mainArchiveBtn {
-      background: #000000 !important; /* COR INICIAL: PRETO */
-      color: white !important;
-      display: block;
-      margin-top: 15px;
-    }
-    #mainArchiveBtn.waiting { background: var(--w) !important; } /* AMARELO */
-    #mainArchiveBtn.done { background: var(--a) !important; }    /* VERDE */
+    /* BOTÃO ARQUIVO - PRETO INICIAL */
+    #mainArchiveBtn { background: #000000 !important; margin-top: 15px; }
+    #mainArchiveBtn.waiting { background: var(--w) !important; }
+    #mainArchiveBtn.done { background: var(--a) !important; }
     
+    /* BOTÃO HISTÓRICO */
+    .btn-hist { background: #475569; margin-top: 10px; font-size: 0.8rem; padding: 0.5rem; }
+    #hist-section { display: none; margin-top: 1rem; border-top: 2px dashed #ccc; padding-top: 1rem; }
+
     input, select { width:100%; padding:.75rem; margin:.25rem 0; border:2px solid #e2e8f0; border-radius:.75rem }
-    .tabs{display:flex;gap:.4rem;margin:1rem 0}.tab-btn{padding:.5rem;border:none;border-radius:1rem;flex:1;cursor:pointer}
-    .tab-btn.active{background:var(--p);color:#fff}
     .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;text-align:center}
     .report-card{background:#f1f5f9;padding:.75rem;border-radius:.75rem}
   </style>
@@ -50,8 +47,8 @@
     </div>
 
     <div class="card">
-      <h3>📊 Saldo</h3>
-      <div class="total-box"><h1 id="totalSum">0.00</h1></div>
+      <h3>📊 Saldo Atual</h3>
+      <div class="total-box"><h1 id="totalSum">0.00€</h1></div>
       <div id="settlements" style="text-align:center;margin-bottom:1rem;padding:.5rem;border-radius:.5rem;font-weight:bold"></div>
       <div class="balance-grid">
         <div class="balance-item sara">👩 Sara: <span id="balanceSara">0.00</span>€</div>
@@ -63,21 +60,16 @@
       <h3>🧾 Lista</h3>
       <div id="list"></div>
       <button id="mainArchiveBtn" class="btn">📁 Arquivar Contas</button>
-      <p id="archive-info" style="font-size:0.7rem;text-align:center;margin-top:5px;color:#64748b"></p>
-    </div>
+      <button onclick="checkPass()" class="btn btn-hist">📜 Ver Histórico</button>
 
-    <div class="card">
-      <h3>📈 Histórico</h3>
-      <div class="tabs">
-        <button class="tab-btn active" data-days="7">7d</button>
-        <button class="tab-btn" data-days="30">30d</button>
-        <button class="tab-btn" data-days="0">Tudo</button>
-      </div>
-      <div class="report-grid">
-        <div class="report-card"><small>Total</small><div id="report-total">0</div></div>
-        <div class="report-card"><small>Média</small><div id="report-avg">0</div></div>
-        <div class="report-card"><small>Sara</small><div id="report-sara">0</div></div>
-        <div class="report-card"><small>Rui</small><div id="report-rui">0</div></div>
+      <div id="hist-section">
+        <h3>📈 Resumo Acumulado</h3>
+        <div class="report-grid">
+          <div class="report-card"><small>Total</small><div id="report-total">0</div></div>
+          <div class="report-card"><small>Média</small><div id="report-avg">0</div></div>
+          <div class="report-card"><small>Sara</small><div id="report-sara">0</div></div>
+          <div class="report-card"><small>Rui</small><div id="report-rui">0</div></div>
+        </div>
       </div>
     </div>
   </div>
