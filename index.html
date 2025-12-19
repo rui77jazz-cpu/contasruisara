@@ -3,158 +3,83 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>💰 Contas Sara & Rui</title>
-  
+  <title>💰 Sara & Rui</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  
   <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
   <style>
-    :root {
-      --primary: #6366f1;
-      --accent: #10b981;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --text: #1e293b;
-      --muted: #64748b;
-      --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --card: #fff;
-      --border: #e2e8f0;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); min-height: 100vh; padding: 1rem; color: var(--text); }
-    .app { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
-    
-    .header { text-align: center; color: #fff; padding: 1rem 0; }
-    
-    .card { background: var(--card); padding: 1.5rem; border-radius: 1.5rem; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-    
-    h2 { font-size: 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-    
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-    .stat { background: #f8fafc; padding: 1rem; border-radius: 1rem; border: 1px solid var(--border); }
-    .stat .label { font-size: 0.875rem; color: var(--muted); }
-    .stat .value { font-size: 1.25rem; font-weight: bold; margin-top: 0.25rem; }
-
-    .input-group { margin-bottom: 1rem; }
-    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
-    select, input { width: 100%; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid var(--border); font-size: 1rem; }
-    
-    .btn { width: 100%; padding: 0.875rem; border-radius: 0.75rem; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; }
-    .btn-primary { background: var(--primary); color: #white; color: white; }
-    .btn-danger { background: var(--danger); color: white; margin-top: 10px; }
-    
-    .archive-section { text-align: center; }
-    .archive-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
-    .archive-btn { padding: 1rem; border-radius: 1rem; border: 2px solid var(--border); background: #f8fafc; font-weight: bold; transition: 0.3s; }
-    .archive-btn.voted { background: #dcfce7; border-color: var(--accent); color: #166534; }
-    .archive-btn.done { background: var(--accent); color: white; border-color: var(--accent); }
-    
-    .archive-status { font-size: 0.9rem; font-weight: 500; padding: 0.5rem; border-radius: 0.5rem; }
-    .archive-status.waiting { color: var(--warning); background: #fffbeb; }
-    .archive-status.success { color: var(--accent); background: #ecfdf5; }
-
-    .expense-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
-    .expense-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8fafc; border-radius: 1rem; }
-    .expense-item .info b { display: block; }
-    .expense-item .info small { color: var(--muted); }
-    .expense-item button { background: none; border: none; font-size: 1.2rem; cursor: pointer; }
-
-    .settlement { padding: 1rem; border-radius: 1rem; text-align: center; font-weight: 600; margin-top: 1rem; }
-    .settlement.pay { background: #fee2e2; color: #991b1b; }
-    .settlement.even { background: #dcfce7; color: #166534; }
-
-    #hist-section { display: none; margin-top: 1rem; }
-    .report-card { background: #f1f5f9; padding: 1rem; border-radius: 0.75rem; text-align: center; margin-bottom: 0.5rem; }
+    :root{--primary:#6366f1;--accent:#10b981;--warning:#f59e0b;--text:#1e293b;--muted:#64748b;--bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%);--card:#fff;--border:#e2e8f0}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:var(--bg);min-height:100vh;padding:1rem}
+    .app{max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
+    .header{text-align:center;color:#fff;padding:1.5rem 0}
+    .card{background:var(--card);border-radius:1rem;padding:1.25rem;box-shadow:0 10px 25px rgba(0,0,0,.1);margin-bottom:1rem}
+    .card-title{font-size:1.1rem;font-weight:700;margin-bottom:1rem}
+    .total-box{background:var(--primary);color:#fff;padding:1rem;border-radius:.75rem;text-align:center;margin-bottom:.75rem}
+    .total-box .value{font-size:2rem;font-weight:800}
+    .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
+    .balance-item{padding:1rem;border-radius:.75rem;text-align:center;background:#f8fafc}
+    .settlement{padding:1rem;border-radius:.75rem;text-align:center;font-weight:600}
+    .settlement.even{background:#d1fae5;color:#065f46}
+    .settlement.pay{background:#fef3c7;color:#92400e}
+    .btn{padding:1rem;border:none;border-radius:.75rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%;transition:0.2s}
+    .btn-save{background:var(--accent);color:#fff}
+    .btn-danger{background:#ef4444;color:#fff;margin-top:1rem}
+    .archive-buttons{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:1rem}
+    .archive-btn{padding:.85rem;border:3px solid #cbd5e1;border-radius:.75rem;background:#f1f5f9;font-weight:700;cursor:pointer}
+    .archive-btn.voted{background:#f59e0b;border-color:#f59e0b;color:#fff}
+    .archive-btn.done{background:#10b981;border-color:#10b981;color:#fff}
+    .expense-item{display:flex;justify-content:space-between;padding:.75rem;background:#f8fafc;border-radius:.75rem;margin-bottom:.5rem;border:1px solid var(--border)}
+    #hist-section{display:none;margin-top:1rem;border-top:2px dashed var(--border);padding-top:1rem}
   </style>
 </head>
 <body>
-
   <div class="app">
-    <div class="header">
-      <h1>💰 Sara & Rui</h1>
-      <p>Contas da Casa</p>
-    </div>
+    <div class="header"><h1>💰 Sara & Rui</h1><p>Contas a meias</p></div>
 
     <div class="card">
-      <div class="grid">
-        <div class="stat">
-          <div class="label">👩 Sara</div>
-          <div class="value"><span id="balanceSara">0</span>€</div>
-        </div>
-        <div class="stat">
-          <div class="label">👨 Rui</div>
-          <div class="value"><span id="balanceRui">0</span>€</div>
-        </div>
-      </div>
-      <div class="stat" style="text-align:center">
-        <div class="label">Total Acumulado</div>
-        <div class="value" style="font-size: 2rem;"><span id="totalSum">0</span>€</div>
+      <div class="card-title">📊 Saldo Atual</div>
+      <div class="total-box"><div class="value"><span id="totalSum">0.00</span> €</div></div>
+      <div class="balance-grid">
+        <div class="balance-item"><div>👩 Sara</div><div class="value"><span id="balanceSara">0.00</span> €</div></div>
+        <div class="balance-item"><div>👨 Rui</div><div class="value"><span id="balanceRui">0.00</span> €</div></div>
       </div>
       <div id="settlements" class="settlement even">✅ Tudo certo!</div>
-    </div>
-
-    <div class="card archive-section">
-      <h2>📦 Fechar Contas</h2>
-      <p style="font-size: 0.85rem; color: var(--muted);">Ambos devem clicar para arquivar as despesas atuais.</p>
       
-      <div class="archive-btns">
+      <div class="archive-buttons">
         <button id="archiveSara" class="archive-btn">👩 Sara</button>
         <button id="archiveRui" class="archive-btn">👨 Rui</button>
       </div>
-      <div id="archive-status" class="archive-status">Aguardando aprovação</div>
     </div>
 
     <div class="card">
-      <h2>➕ Novo Gasto</h2>
+      <div class="card-title">➕ Nova Despesa</div>
       <form id="expenseForm">
-        <div class="input-group">
-          <label>Quem pagou?</label>
-          <select id="payer">
-            <option value="Sara">Sara 👩</option>
-            <option value="Rui">Rui 👨</option>
-          </select>
-        </div>
-        <div class="grid">
-          <div class="input-group">
-            <label>Valor (€)</label>
-            <input type="number" id="amount" step="0.01" placeholder="0.00" required>
-          </div>
-          <div class="input-group">
-            <label>O que é?</label>
-            <input type="text" id="description" placeholder="Ex: Compras" required>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary">Adicionar Despesa</button>
+        <select id="payer" required style="width:100%;padding:.75rem;margin-bottom:.5rem;border-radius:.75rem;border:2px solid var(--border)">
+          <option value="Sara">👩 Sara</option>
+          <option value="Rui">👨 Rui</option>
+        </select>
+        <input id="amount" type="number" step="0.01" placeholder="Valor €" required style="width:100%;padding:.75rem;margin-bottom:.5rem;border-radius:.75rem;border:2px solid var(--border)">
+        <input id="description" type="text" placeholder="Descrição" required style="width:100%;padding:.75rem;margin-bottom:.5rem;border-radius:.75rem;border:2px solid var(--border)">
+        <button type="submit" class="btn btn-save">✓ Guardar</button>
       </form>
     </div>
 
     <div class="card">
-      <h2>📋 Despesas Atuais</h2>
-      <div id="list" class="expense-list">
-        </div>
-    </div>
-
-    <div class="card">
-      <h2>📜 Histórico de Arquivos</h2>
-      <button id="histToggle" class="btn">Ver/Ocultar Histórico</button>
+      <div class="card-title">🧾 Lista de Despesas</div>
+      <div id="list"></div>
+      <button id="histToggle" class="btn" style="background:#475569;color:#fff;margin-top:1rem">📜 Histórico e Limpeza</button>
       
       <div id="hist-section">
-        <div class="report-card">
-          <div class="label">Total no Histórico</div>
-          <div class="value" id="report-total">0€</div>
+        <div style="background:#f1f5f9;padding:1rem;border-radius:.75rem;text-align:center">
+          <div style="font-size:.8rem;color:var(--muted)">TOTAL NO HISTÓRICO</div>
+          <div style="font-size:1.5rem;font-weight:800" id="report-total">0.00 €</div>
         </div>
-        
-        <button id="clearHistoryBtn" class="btn btn-danger">🗑️ Gerar DOCX e Limpar Tudo</button>
-        <p style="font-size: 0.75rem; color: #fff; background: #ef4444; padding: 5px; border-radius: 5px; margin-top: 5px; text-align: center;">
-          Atenção: Limpar apaga o histórico para sempre após baixar o Word.
-        </p>
+        <button id="clearHistoryBtn" class="btn btn-danger">🗑️ Exportar Word e Reset Total</button>
       </div>
     </div>
   </div>
-
   <script src="script.js"></script>
 </body>
 </html>
