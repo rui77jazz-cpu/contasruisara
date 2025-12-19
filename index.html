@@ -4,85 +4,87 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>💰 Sara & Rui</title>
+  
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
   <style>
-    :root{--primary:#4f46e5;--secondary:#f59e0b;--bg:#f8fafc}
-    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
-    body{background:var(--bg);padding:15px;color:#1e293b}
-    .container{max-width:500px;margin:0 auto}
-    .card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 15px rgba(0,0,0,0.05);margin-bottom:15px}
-    .total-box{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:25px;border-radius:16px;text-align:center;font-size:2.5rem;font-weight:800;margin-bottom:15px}
-    .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px}
-    .balance-item{background:#f1f5f9;padding:15px;border-radius:12px;text-align:center}
-    .balance-item b{display:block;font-size:1.2rem;color:var(--primary)}
-    .settlement{padding:15px;border-radius:12px;text-align:center;font-weight:700;margin-bottom:15px}
-    .settlement.even{background:#dcfce7;color:#166534}
-    .settlement.pay{background:#fee2e2;color:#991b1b}
+    :root{--primary:#6366f1;--accent:#10b981;--bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif}
+    body{background:var(--bg);min-height:100vh;padding:1rem;color:#1e293b}
+    .card{background:#fff;border-radius:1.2rem;padding:1.5rem;box-shadow:0 10px 25px rgba(0,0,0,.1);margin-bottom:1rem}
+    .total-box{background:var(--primary);color:#fff;padding:1.5rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2.2rem;font-weight:800}
+    .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+    .balance-item{padding:1.2rem;border-radius:1rem;text-align:center;background:#f8fafc;border:1px solid #e2e8f0}
+    .balance-item b{display:block;font-size:1.2rem;margin-top:5px}
+    .settlement{padding:1rem;border-radius:.8rem;text-align:center;font-weight:600;margin-bottom:1rem}
+    .settlement.even{background:#d1fae5;color:#065f46}
+    .settlement.pay{background:#fee2e2;color:#991b1b;border:2px solid #fecaca}
     
-    /* Design dos Botões de Aprovação */
-    .vote-title{text-align:center;font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:10px}
-    .vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .v-btn{padding:12px;border:none;border-radius:10px;font-weight:700;cursor:pointer;transition:0.3s;background:#e2e8f0;color:#64748b}
-    .v-btn.active{background:var(--secondary);color:#fff;box-shadow:0 4px 10px rgba(245,158,11,0.3)}
+    input, select {width:100%;padding:14px;margin-bottom:12px;border-radius:12px;border:1px solid #ddd;font-size:16px;outline:none}
+    .btn-save{background:var(--accent);color:#fff;border:none;padding:1rem;border-radius:12px;font-weight:700;width:100%;cursor:pointer;font-size:1rem}
     
-    input,select{width:100%;padding:14px;margin-bottom:12px;border-radius:10px;border:1px solid #e2e8f0;font-size:1rem;outline:none}
-    input:focus{border-color:var(--primary)}
-    .btn-save{width:100%;padding:15px;background:#10b981;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer}
-    .btn-hist{width:100%;padding:12px;background:#64748b;color:#fff;border:none;border-radius:10px;margin-top:10px;font-weight:600}
-    .filter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:15px 0}
-    .f-btn{padding:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;cursor:pointer}
-    .btn-clear{width:100%;padding:15px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:700;margin-top:20px}
+    .expense-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #eee}
+    .v-btn{padding:15px;border:none;border-radius:12px;font-weight:bold;cursor:pointer;transition:0.3s}
+    
+    #hist-section{display:none;margin-top:1.5rem;border-top:2px dashed #eee;padding-top:1.5rem}
+    .filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:15px}
+    .f-btn{padding:8px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:0.8rem}
+    .btn-clear{background:#ef4444;color:#fff;border:none;padding:1rem;border-radius:12px;width:100%;font-weight:700;margin-top:15px}
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card" style="background:none;box-shadow:none;text-align:center"><h2>💰 Sara & Rui</h2></div>
+  <div style="text-align:center;padding:1rem;color:#fff"><h1>💰 Sara & Rui</h1></div>
+
+  <div class="card">
+    <div class="total-box"><span id="totalSum">0.00</span> €</div>
+    <div class="balance-grid">
+      <div class="balance-item">👩 Sara<br><b id="balanceSara">0.00€</b></div>
+      <div class="balance-item">👨 Rui<br><b id="balanceRui">0.00€</b></div>
+    </div>
+    <div id="settlements" class="settlement even">✅ Tudo certo!</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:1rem">➕ Nova Despesa</h3>
+    <form id="expenseForm">
+      <select id="payer"><option value="Sara">Sara 👩</option><option value="Rui">Rui 👨</option></select>
+      <input id="amount" type="number" step="0.01" placeholder="Valor €" required>
+      <input id="description" type="text" placeholder="Descrição" required>
+      <button type="submit" class="btn-save">✓ Guardar</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h3>📋 Lista Atual</h3>
+      <button onclick="toggleHistSection()" style="background:none;border:none;color:#6366f1;font-weight:600;cursor:pointer">Histórico 📜</button>
+    </div>
     
-    <div class="card">
-      <div class="total-box"><span id="totalSum">0.00</span>€</div>
-      <div class="balance-grid">
-        <div class="balance-item">👩 Sara<br><b id="balanceSara">0.00</b></div>
-        <div class="balance-item">👨 Rui<br><b id="balanceRui">0.00</b></div>
-      </div>
-      <div id="settlements" class="settlement even">✅ Tudo certo!</div>
-      
-      <div class="vote-title">Aprovar Arquivo</div>
-      <div class="vote-grid">
+    <div id="list"></div>
+
+    <div style="margin-top:2rem; padding-top:1rem; border-top:1px solid #eee; text-align:center">
+      <p style="font-size:0.8rem; color:#64748b; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px">Aprovar Arquivo</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
         <button id="archiveSara" class="v-btn">Sara 👩</button>
         <button id="archiveRui" class="v-btn">Rui 👨</button>
       </div>
     </div>
 
-    <div class="card">
-      <h4 style="margin-bottom:15px">➕ Nova Despesa</h4>
-      <form id="expenseForm">
-        <select id="payer"><option value="Sara">Sara 👩</option><option value="Rui">Rui 👨</option></select>
-        <input id="amount" type="number" step="0.01" placeholder="Valor €" required>
-        <input id="description" type="text" placeholder="Descrição" required>
-        <button type="submit" class="btn-save">✓ Guardar Despesa</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <h4 style="margin-bottom:10px">📋 Lista Atual</h4>
-      <div id="list"></div>
-      <button id="histToggle" class="btn-hist">📜 Histórico e Opções</button>
-      
-      <div id="hist-section" style="display:none">
-        <div class="filter-grid">
-          <button onclick="filtrarHist(7)" class="f-btn">7 dias</button>
-          <button onclick="filtrarHist(15)" class="f-btn">15 dias</button>
-          <button onclick="filtrarHist(30)" class="f-btn">Mês</button>
-        </div>
-        <p style="font-size:0.9rem">Total Filtrado: <b id="histTotal">0.00</b>€</p>
-        <div id="histList" style="margin-top:10px; font-size:0.85rem; color:#64748b"></div>
-        <button id="clearBtn" class="btn-clear">🗑️ Gerar Word e Limpar Tudo</button>
+    <div id="hist-section">
+      <div class="filter-grid">
+        <button onclick="filtrarHist(7)" class="f-btn">7 dias</button>
+        <button onclick="filtrarHist(15)" class="f-btn">15 dias</button>
+        <button onclick="filtrarHist(30)" class="f-btn">Mês</button>
       </div>
+      <p style="font-size:0.9rem">Filtro: <b id="histTotal">0.00</b>€</p>
+      <div id="histList" style="max-height:150px; overflow-y:auto; font-size:0.85rem; margin-top:10px; color:#64748b"></div>
+      <button id="clearBtn" class="btn-clear">🗑️ Gerar Word e Limpar Tudo</button>
     </div>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>
