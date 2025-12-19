@@ -12,11 +12,10 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
 var householdRef = db.collection("households").doc("sara_rui");
 
-// --- IDENTIFICAÇÃO ÚNICA DO APARELHO ---
+// --- IDENTIFICAÇÃO DO APARELHO ---
 function getDeviceId() {
   var id = localStorage.getItem("myDeviceId");
   if (!id) {
-    // Cria um ID único se não existir
     id = "dev_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
     localStorage.setItem("myDeviceId", id);
   }
@@ -38,7 +37,6 @@ function getDateDaysAgo(days) {
   return d.toISOString().slice(0, 10);
 }
 
-// --- ESPERAR PELO DOM ---
 document.addEventListener("DOMContentLoaded", function() {
   
   var saraBtn = document.getElementById("archiveSara");
@@ -54,7 +52,6 @@ document.addEventListener("DOMContentLoaded", function() {
     var sV = !!votes.sara;
     var rV = !!votes.rui;
     
-    // Atualizar visual dos botões
     saraBtn.className = "archive-btn" + (sV ? " voted" : "");
     ruiBtn.className = "archive-btn" + (rV ? " voted" : "");
     saraBtn.innerHTML = sV ? "👩 Sara ✓" : "👩 Sara";
@@ -74,7 +71,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // --- LÓGICA DE VOTO (APENAS POR APARELHO) ---
+  // --- LÓGICA DE VOTO (SEM PIN - APENAS APARELHO) ---
   function handleVote(user) {
     householdRef.get().then(function(doc) {
       var data = doc.data() || {};
@@ -82,30 +79,28 @@ document.addEventListener("DOMContentLoaded", function() {
       var userKey = user.toLowerCase();
       var otherUserKey = user === "Sara" ? "rui" : "sara";
       
-      // 1. Verificar se este utilizador já votou
+      // 1. Já votou?
       if (votes[userKey]) {
         alert("Já deste a tua aprovação!");
         return;
       }
 
-      // 2. Bloqueio: Verificar se este aparelho já votou como a outra pessoa
+      // 2. O mesmo aparelho tentou votar pelo outro?
       if (votes[otherUserKey + "Device"] === myDeviceId) {
-        alert("⚠️ Bloqueio de Segurança: Este aparelho já foi usado pelo(a) " + (user === "Sara" ? "Rui" : "Sara") + ". Deves usar o teu próprio telemóvel para aprovar.");
+        alert("⚠️ Bloqueio: Este aparelho já foi usado pelo(a) " + (user === "Sara" ? "Rui" : "Sara") + ". Usa o teu telemóvel!");
         return;
       }
 
-      // 3. Gravar Voto
+      // 3. Gravar voto e ID do aparelho
       var updateData = {};
       updateData["archiveVotes." + userKey] = true;
       updateData["archiveVotes." + userKey + "Device"] = myDeviceId;
 
       householdRef.update(updateData).then(function() {
-        // Verificar se os dois acabaram de votar
+        // Verifica se ambos votaram
         householdRef.get().then(function(newDoc) {
           var v = newDoc.data().archiveVotes;
-          if (v.sara && v.rui) {
-            setTimeout(doArchive, 1500);
-          }
+          if (v.sara && v.rui) setTimeout(doArchive, 1500);
         });
       });
     });
@@ -114,24 +109,17 @@ document.addEventListener("DOMContentLoaded", function() {
   saraBtn.onclick = function() { handleVote("Sara"); };
   ruiBtn.onclick = function() { handleVote("Rui"); };
 
-  // --- FUNÇÃO DE ARQUIVO ---
   function doArchive() {
     householdRef.collection("expenses").get().then(function(snap) {
       if (snap.empty) { resetVotes(); return; }
-      
       var batch = db.batch();
       var now = new Date().toISOString();
-      
       snap.docs.forEach(function(doc) {
-        batch.set(householdRef.collection("historico").doc(), {
-          ...doc.data(), 
-          archivedAt: now
-        });
+        batch.set(householdRef.collection("historico").doc(), { ...doc.data(), archivedAt: now });
         batch.delete(doc.ref);
       });
-      
       batch.commit().then(function() {
-        alert("✅ Contas fechadas! Tudo arquivado no histórico.");
+        alert("✅ Contas arquivadas!");
         resetVotes();
       });
     });
@@ -139,37 +127,28 @@ document.addEventListener("DOMContentLoaded", function() {
 
   function resetVotes() {
     householdRef.update({
-      archiveVotes: { 
-        sara: false, 
-        saraDevice: null, 
-        rui: false, 
-        ruiDevice: null 
-      }
+      archiveVotes: { sara: false, saraDevice: null, rui: false, ruiDevice: null }
     });
   }
 
-  // --- RESTANTE DO CÓDIGO (Interface e Listagem) ---
+  // --- INTERFACE (LISTA E FORMULÁRIO) ---
   householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(snap) {
     var list = document.getElementById("list");
     list.innerHTML = "";
     var tS = 0, tR = 0, t = 0;
-    
     snap.forEach(function(doc) {
       var e = doc.data();
       t += e.amount || 0;
       if (e.payer === "Sara") tS += e.amount || 0; else tR += e.amount || 0;
-      
       var div = document.createElement("div");
       div.className = "expense-item";
-      div.innerHTML = `<div class="info"><b>${e.payer === "Sara"?'👩':'👨'} ${e.payer}</b><br><small>${e.description}</small></div>
+      div.innerHTML = `<div class="info"><b>${e.payer === 'Sara'?'👩':'👨'} ${e.payer}</b><br><small>${e.description}</small></div>
                        <div style="display:flex;align-items:center;gap:8px"><b>${e.amount.toFixed(2)}€</b><button onclick="deleteExpense('${doc.id}')">🗑️</button></div>`;
       list.appendChild(div);
     });
-    
     document.getElementById("totalSum").textContent = t.toFixed(2);
     document.getElementById("balanceSara").textContent = tS.toFixed(2);
     document.getElementById("balanceRui").textContent = tR.toFixed(2);
-    
     var s = document.getElementById("settlements");
     var d = Math.abs(tS - tR) / 2;
     if (t === 0 || d < 0.01) { s.className="settlement even"; s.innerHTML="✅ Tudo certo!"; }
@@ -198,4 +177,3 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 });
-
