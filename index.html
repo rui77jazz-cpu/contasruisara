@@ -17,7 +17,7 @@
     .card{background:#fff;border-radius:1.2rem;padding:1.5rem;box-shadow:0 10px 25px rgba(0,0,0,.1);margin-bottom:1rem}
     .total-box{background:var(--primary);color:#fff;padding:1.5rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2.2rem;font-weight:800}
     .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
-    .balance-item{padding:1.2rem;border-radius:1rem;text-align:center;background:#f8fafc;border:1px solid #e2e8f0}
+    .balance-item{padding:1rem;border-radius:1rem;text-align:center;background:#f8fafc;border:1px solid #e2e8f0}
     .settlement{padding:1rem;border-radius:.8rem;text-align:center;font-weight:600;margin-bottom:1rem}
     .settlement.even{background:#d1fae5;color:#065f46}
     .settlement.pay{background:#fee2e2;color:#991b1b;border:2px solid #fecaca}
@@ -28,10 +28,9 @@
     .expense-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #eee}
     .v-btn{padding:15px;border:none;border-radius:12px;font-weight:bold;cursor:pointer;width:100%}
     
-    /* HISTÓRICO - Corrigido para garantir visibilidade */
-    #hist-section { display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px dashed #eee; }
+    #hist-section { display: none; margin-top: 1.5rem; padding: 1rem; border-top: 2px dashed #eee; background: #fafafa; border-radius: 12px; }
     .filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:15px}
-    .f-btn{padding:10px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer}
+    .f-btn{padding:10px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer; font-weight: bold;}
     .btn-clear{background:#ef4444;color:#fff;border:none;padding:1rem;border-radius:12px;width:100%;font-weight:700;margin-top:15px}
   </style>
 </head>
@@ -60,13 +59,13 @@
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <h3>📋 Lista Atual</h3>
-      <button id="btnToggleHist" style="background:#f1f5f9; border:none; padding:8px 12px; border-radius:8px; color:#6366f1; font-weight:600; cursor:pointer">📜 Abrir Histórico</button>
+      <button id="btnToggleHist" style="background:#6366f1; border:none; padding:8px 15px; border-radius:8px; color:#fff; font-weight:600; cursor:pointer">📜 Histórico</button>
     </div>
     
     <div id="list"></div>
 
     <div style="margin-top:2rem; padding-top:1rem; border-top:1px solid #eee; text-align:center">
-      <p style="font-size:0.8rem; color:#64748b; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px">Aprovar Arquivo</p>
+      <p style="font-size:0.8rem; color:#64748b; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px; font-weight: bold;">Aprovar Arquivo</p>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
         <button id="archiveSara" class="v-btn">Sara 👩</button>
         <button id="archiveRui" class="v-btn">Rui 👨</button>
@@ -75,12 +74,12 @@
 
     <div id="hist-section">
       <div class="filter-grid">
-        <button id="f7" class="f-btn">7 dias</button>
-        <button id="f15" class="f-btn">15 dias</button>
-        <button id="f30" class="f-btn">Mês</button>
+        <button onclick="filtrarHist(7)" class="f-btn">7d</button>
+        <button onclick="filtrarHist(15)" class="f-btn">15d</button>
+        <button onclick="filtrarHist(30)" class="f-btn">30d</button>
       </div>
-      <p>Filtro: <b id="histTotal">0.00</b>€</p>
-      <div id="histList" style="max-height:200px; overflow-y:auto; font-size:0.85rem; margin-top:10px; border:1px solid #f1f5f9; padding:10px; border-radius:8px"></div>
+      <p>Total Filtrado: <b id="histTotal">0.00</b>€</p>
+      <div id="histList" style="max-height:200px; overflow-y:auto; font-size:0.85rem; margin-top:10px; color: #444"></div>
       <button id="clearBtn" class="btn-clear">🗑️ Gerar Word e Limpar Tudo</button>
     </div>
   </div>
