@@ -1,3 +1,4 @@
+// CONFIGURAÇÃO FIREBASE (Usa a tua original)
 var firebaseConfig = {
   apiKey: "AIzaSyCle9Kx3OVD7mnZfXubKyIGW6COYrGI304",
   authDomain: "contassararui.firebaseapp.com",
@@ -11,38 +12,48 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
 var householdRef = db.collection("households").doc("sara_rui");
 
-// Identificador do dispositivo para a votação
-var myDevId = localStorage.getItem("devId") || "d_" + Math.random().toString(36).substr(2, 9);
-localStorage.setItem("devId", myDevId);
-
-// --- ATUALIZAÇÃO EM TEMPO REAL E VOTAÇÃO ---
+// --- 1. GESTÃO DE VOTAÇÃO (APROVAR ARQUIVO) ---
 householdRef.onSnapshot(function(doc) {
     var data = doc.data() || {};
-    var votes = data.archiveVotes || {};
+    var votes = data.archiveVotes || { sara: false, rui: false };
     
-    // Atualiza o aspeto dos botões de aprovação
+    // Atualiza visual dos botões de aprovação
     var btnS = document.getElementById("archiveSara");
     var btnR = document.getElementById("archiveRui");
     
-    if(btnS) btnS.className = "v-btn" + (votes.sara ? " voted" : "");
-    if(btnR) btnR.className = "v-btn" + (votes.rui ? " voted" : "");
+    if(btnS) btnS.style.background = votes.sara ? "#10b981" : "#e2e8f0";
+    if(btnR) btnR.style.background = votes.rui ? "#10b981" : "#e2e8f0";
 
-    // Se ambos votarem, arquiva automaticamente
+    // Se os dois aprovarem, move para o histórico
     if(votes.sara && votes.rui) {
-        setTimeout(archiveCurrentExpenses, 1000);
+        archiveNow();
     }
 });
 
-// --- LISTA DE DESPESAS ATUAIS ---
+async function toggleVote(pessoa) {
+    var doc = await householdRef.get();
+    var v = doc.data().archiveVotes || { sara: false, rui: false };
+    var campo = pessoa.toLowerCase();
+    
+    var up = {};
+    up["archiveVotes." + campo] = !v[campo];
+    await householdRef.update(up);
+}
+
+// Ligar os botões de aprovação do teu HTML
+document.getElementById("archiveSara").onclick = function() { toggleVote('Sara'); };
+document.getElementById("archiveRui").onclick = function() { toggleVote('Rui'); };
+
+// --- 2. MOSTRAR DESPESAS E CÁLCULO CERTO ---
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(snap) {
     var list = document.getElementById("list");
-    if(list) list.innerHTML = "";
     var ts = 0, tr = 0;
+    list.innerHTML = "";
 
     snap.forEach(function(doc) {
         var e = doc.data();
         if(e.payer === "Sara") ts += e.amount; else tr += e.amount;
-        if(list) list.innerHTML += `<div class="expense-item"><span>${e.payer}: ${e.description}</span><b>${e.amount.toFixed(2)}€</b></div>`;
+        list.innerHTML += `<div class="item"><span>${e.payer}: ${e.description}</span><b>${e.amount.toFixed(2)}€</b></div>`;
     });
 
     document.getElementById("totalSum").textContent = (ts + tr).toFixed(2);
@@ -52,104 +63,70 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(
     var s = document.getElementById("settlements");
     var diff = (ts - tr) / 2;
     if((ts+tr) === 0 || Math.abs(diff) < 0.01) {
-        s.className = "settlement even"; s.innerHTML = "✅ Tudo certo!";
+        s.style.background = "#dcfce7"; s.innerHTML = "✅ Tudo certo!";
     } else {
-        s.className = "settlement pay";
+        s.style.background = "#fee2e2";
         s.innerHTML = diff > 0 ? `👨 Rui deve <b>${diff.toFixed(2)}€</b> a 👩 Sara` : `👩 Sara deve <b>${Math.abs(diff).toFixed(2)}€</b> a 👨 Rui`;
     }
 });
 
-// --- FUNÇÃO DE VOTAÇÃO ---
-async function vote(user) {
-    var doc = await householdRef.get();
-    var votes = doc.data().archiveVotes || {};
-    var field = user.toLowerCase();
-
-    if(votes[field]) return; // Já votou
-    
-    var update = {};
-    update["archiveVotes." + field] = true;
-    update["archiveVotes." + field + "Dev"] = myDevId;
-    
-    await householdRef.update(update);
-}
-
-document.getElementById("archiveSara").onclick = function() { vote("Sara"); };
-document.getElementById("archiveRui").onclick = function() { vote("Rui"); };
-
-// --- ARQUIVAR DESPESAS (QUANDO AMBOS APROVAM) ---
-async function archiveCurrentExpenses() {
+// --- 3. MOVER PARA HISTÓRICO ---
+async function archiveNow() {
     var snap = await householdRef.collection("expenses").get();
-    if(snap.empty) return resetVotes();
+    if(snap.empty) return;
 
     var batch = db.batch();
-    snap.docs.forEach(function(d) {
-        var data = d.data();
-        data.archivedAt = new Date().toISOString();
-        batch.set(householdRef.collection("historico").doc(), data);
+    snap.docs.forEach(d => {
+        batch.set(householdRef.collection("historico").doc(), d.data());
         batch.delete(d.ref);
     });
-
+    
     await batch.commit();
-    await resetVotes();
-    alert("Despesas arquivadas no histórico!");
+    await householdRef.update({ "archiveVotes": { sara: false, rui: false } });
+    alert("Arquivado!");
 }
 
-function resetVotes() {
-    return householdRef.update({ archiveVotes: { sara: false, rui: false } });
-}
-
-// --- BOTÃO DO HISTÓRICO (ABRIR E FILTRAR) ---
-document.getElementById("histToggle").onclick = function() {
-    var section = document.getElementById("hist-section");
-    section.style.display = section.style.display === "none" ? "block" : "none";
-    if(section.style.display === "block") loadHistory(30); // Padrão 30 dias
-};
-
-async function loadHistory(days) {
-    var limitDate = new Date();
-    limitDate.setDate(limitDate.getDate() - days);
-    var dateStr = limitDate.toISOString().slice(0,10);
+// --- 4. FILTROS DE TEMPO (7, 15, 30 DIAS) ---
+async function filtrarHist(dias) {
+    var dataLimite = new Date();
+    dataLimite.setDate(dataLimite.getDate() - dias);
+    var isoDate = dataLimite.toISOString().split('T')[0];
 
     var snap = await householdRef.collection("historico")
-        .where("date", ">=", dateStr)
+        .where("date", ">=", isoDate)
         .get();
 
     var totalH = 0;
     snap.forEach(d => totalH += d.data().amount);
+    
     document.getElementById("histTotal").textContent = totalH.toFixed(2) + "€";
+    document.getElementById("hist-section").style.display = "block";
 }
 
-// --- GERAR DOCX E LIMPAR TUDO ---
+// --- 5. LIMPEZA TOTAL E WORD ---
 document.getElementById("clearBtn").onclick = async function() {
-    if(!confirm("Gerar Word e APAGAR TODO o histórico e despesas atuais?")) return;
+    if(!confirm("Gerar Word e LIMPAR TUDO?")) return;
 
-    var cur = await householdRef.collection("expenses").get();
-    var hist = await householdRef.collection("historico").get();
+    const cur = await householdRef.collection("expenses").get();
+    const hist = await householdRef.collection("historico").get();
     
-    var all = [], ts = 0, tr = 0;
-    [...cur.docs, ...hist.docs].forEach(d => {
-        var e = d.data(); all.push(e);
-        if(e.payer === "Sara") ts += e.amount; else tr += e.amount;
-    });
+    let reportData = [];
+    cur.forEach(d => reportData.push(d.data()));
+    hist.forEach(d => reportData.push(d.data()));
 
-    var diff = (ts - tr) / 2;
-    var acerto = diff > 0 ? `Rui deve ${diff.toFixed(2)}€` : `Sara deve ${Math.abs(diff).toFixed(2)}€`;
-
-    const { Document, Packer, Paragraph, TextRun } = docx;
+    const { Document, Packer, Paragraph } = docx;
     const doc = new Document({
         sections: [{
             children: [
-                new Paragraph({ text: "RELATÓRIO FINAL", heading: "Heading1" }),
-                new Paragraph({ text: "Acerto Final: " + acerto, bold: true }),
-                ...all.map(e => new Paragraph({ text: `${e.date} - ${e.payer}: ${e.description} (${e.amount}€)` }))
+                new Paragraph({ text: "RELATÓRIO DE CONTAS", heading: "Heading1" }),
+                ...reportData.map(e => new Paragraph({ text: `${e.date} | ${e.payer}: ${e.description} - ${e.amount}€` }))
             ]
         }]
     });
 
     Packer.toBlob(doc).then(blob => {
-        saveAs(blob, "Relatorio_Contas.docx");
-        var batch = db.batch();
+        saveAs(blob, "Relatorio_Sara_Rui.docx");
+        let batch = db.batch();
         cur.docs.forEach(d => batch.delete(d.ref));
         hist.docs.forEach(d => batch.delete(d.ref));
         batch.commit().then(() => location.reload());
