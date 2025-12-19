@@ -11,7 +11,6 @@
       --primary:#6366f1;
       --accent:#10b981;
       --warning:#f59e0b;
-      --danger:#ef4444;
       --text:#1e293b;
       --muted:#64748b;
       --bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
@@ -58,35 +57,54 @@
     .expense-item button{background:none;border:none;font-size:1.2rem;cursor:pointer;opacity:.5}
     .expense-item button:hover{opacity:1}
     
-    /* Secção de Arquivar */
+    /* Arquivar */
     .archive-section{margin-top:1rem;padding-top:1rem;border-top:2px dashed var(--border)}
     .archive-title{font-size:.85rem;color:var(--muted);text-align:center;margin-bottom:.75rem}
     .archive-buttons{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
-    .archive-btn{padding:.85rem;border:3px solid var(--border);border-radius:.75rem;background:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:.4rem}
-    .archive-btn:hover{border-color:var(--muted);background:#f8fafc}
-    .archive-btn.approved{background:var(--warning);border-color:var(--warning);color:#fff;transform:scale(1.02)}
-    .archive-btn.done{background:var(--accent);border-color:var(--accent);color:#fff}
-    .archive-status{text-align:center;font-size:.9rem;color:var(--text);margin-top:.75rem;padding:.5rem;border-radius:.5rem;font-weight:600}
-    .archive-status.waiting{background:#fef3c7;color:#92400e}
-    .archive-status.success{background:#d1fae5;color:#065f46}
+    
+    /* BOTÕES - CINZENTO por defeito */
+    .archive-btn{
+      padding:.85rem;
+      border:3px solid #cbd5e1;
+      border-radius:.75rem;
+      background:#f1f5f9;
+      color:#64748b;
+      font-size:.95rem;
+      font-weight:700;
+      cursor:pointer;
+      transition:all .3s;
+    }
+    .archive-btn:hover{background:#e2e8f0}
+    
+    /* AMARELO quando votou */
+    .archive-btn.voted{
+      background:#f59e0b;
+      border-color:#f59e0b;
+      color:#fff;
+    }
+    
+    /* VERDE quando ambos votaram */
+    .archive-btn.done{
+      background:#10b981;
+      border-color:#10b981;
+      color:#fff;
+    }
+    
+    .archive-status{text-align:center;font-size:.9rem;margin-top:.75rem;padding:.5rem;border-radius:.5rem;font-weight:600;display:none}
+    .archive-status.waiting{display:block;background:#fef3c7;color:#92400e}
+    .archive-status.success{display:block;background:#d1fae5;color:#065f46}
     
     /* Histórico */
     .hist-toggle{background:#475569;color:#fff;margin-top:1rem;font-size:.85rem;padding:.75rem}
     .hist-section{display:none;margin-top:1rem;padding-top:1rem;border-top:2px dashed var(--border)}
-    
-    /* Tabs de período */
     .period-tabs{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
-    .period-tab{padding:.5rem .75rem;border:none;border-radius:2rem;background:#e2e8f0;color:var(--muted);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s}
+    .period-tab{padding:.5rem .75rem;border:none;border-radius:2rem;background:#e2e8f0;color:var(--muted);font-size:.8rem;font-weight:600;cursor:pointer}
     .period-tab.active{background:var(--primary);color:#fff}
-    .period-tab:hover{background:#cbd5e1}
-    .period-tab.active:hover{background:var(--primary)}
-    
     .report-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}
     .report-card{background:#f1f5f9;padding:.75rem;border-radius:.75rem;text-align:center}
     .report-card .icon{font-size:1.25rem}
     .report-card .value{font-size:1.25rem;font-weight:800;color:var(--text)}
     .report-card .label{font-size:.7rem;color:var(--muted)}
-    
     .report-period{text-align:center;font-size:.8rem;color:var(--muted);margin-top:.5rem}
   </style>
 </head>
@@ -98,7 +116,6 @@
       <p>Contas a meias</p>
     </div>
 
-    <!-- Nova Despesa -->
     <div class="card">
       <div class="card-title">➕ Nova Despesa</div>
       <form id="expenseForm" class="form-grid">
@@ -113,7 +130,6 @@
       </form>
     </div>
 
-    <!-- Saldo -->
     <div class="card">
       <div class="card-title">📊 Saldo</div>
       <div class="total-box">
@@ -134,26 +150,21 @@
       <div id="settlements" class="settlement even">✅ Tudo certo!</div>
     </div>
 
-    <!-- Despesas -->
     <div class="card">
       <div class="card-title">🧾 Despesas</div>
       <div id="list"></div>
       
-      <!-- Arquivar -->
       <div class="archive-section">
         <div class="archive-title">📁 Arquivar (precisam os dois)</div>
         <div class="archive-buttons">
           <button id="archiveSara" class="archive-btn">👩 Sara</button>
           <button id="archiveRui" class="archive-btn">👨 Rui</button>
         </div>
-        <div id="archive-status" class="archive-status" style="display:none"></div>
+        <div id="archive-status" class="archive-status"></div>
       </div>
       
-      <!-- Histórico -->
       <button id="histToggle" class="btn hist-toggle">📜 Ver Histórico</button>
       <div id="hist-section" class="hist-section">
-        
-        <!-- Tabs de período -->
         <div class="period-tabs">
           <button class="period-tab active" data-days="7">7 dias</button>
           <button class="period-tab" data-days="15">15 dias</button>
@@ -161,7 +172,6 @@
           <button class="period-tab" data-days="90">3 meses</button>
           <button class="period-tab" data-days="0">Tudo</button>
         </div>
-        
         <div class="report-grid">
           <div class="report-card">
             <div class="icon">💸</div>
