@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -74,11 +73,21 @@
     /* Histórico */
     .hist-toggle{background:#475569;color:#fff;margin-top:1rem;font-size:.85rem;padding:.75rem}
     .hist-section{display:none;margin-top:1rem;padding-top:1rem;border-top:2px dashed var(--border)}
+    
+    /* Tabs de período */
+    .period-tabs{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
+    .period-tab{padding:.5rem .75rem;border:none;border-radius:2rem;background:#e2e8f0;color:var(--muted);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s}
+    .period-tab.active{background:var(--primary);color:#fff}
+    .period-tab:hover{background:#cbd5e1}
+    .period-tab.active:hover{background:var(--primary)}
+    
     .report-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}
     .report-card{background:#f1f5f9;padding:.75rem;border-radius:.75rem;text-align:center}
     .report-card .icon{font-size:1.25rem}
     .report-card .value{font-size:1.25rem;font-weight:800;color:var(--text)}
     .report-card .label{font-size:.7rem;color:var(--muted)}
+    
+    .report-period{text-align:center;font-size:.8rem;color:var(--muted);margin-top:.5rem}
   </style>
 </head>
 <body>
@@ -143,6 +152,16 @@
       <!-- Histórico -->
       <button id="histToggle" class="btn hist-toggle">📜 Ver Histórico</button>
       <div id="hist-section" class="hist-section">
+        
+        <!-- Tabs de período -->
+        <div class="period-tabs">
+          <button class="period-tab active" data-days="7">7 dias</button>
+          <button class="period-tab" data-days="15">15 dias</button>
+          <button class="period-tab" data-days="30">1 mês</button>
+          <button class="period-tab" data-days="90">3 meses</button>
+          <button class="period-tab" data-days="0">Tudo</button>
+        </div>
+        
         <div class="report-grid">
           <div class="report-card">
             <div class="icon">💸</div>
@@ -165,6 +184,7 @@
             <div class="label">Rui</div>
           </div>
         </div>
+        <p id="report-period" class="report-period"></p>
       </div>
     </div>
 
