@@ -4,45 +4,56 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>💰 Sara & Rui</title>
-  
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
-    :root{--primary:#6366f1;--accent:#10b981;--bg:#f4f7ff}
-    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI', Roboto, sans-serif}
+    :root{--primary:#6366f1;--accent:#10b981;--danger:#ef4444;--bg:#f8fafc}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
     body{background:var(--bg);padding:1rem;color:#1e293b}
     .card{background:#fff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem}
-    .total-box{background:linear-gradient(135deg, #6366f1, #4f46e5);color:#fff;padding:1.5rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2rem;font-weight:bold}
+    .total-box{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:1.5rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2.2rem;font-weight:bold}
     .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
     .balance-item{padding:1rem;border-radius:0.8rem;text-align:center;background:#fff;border:1px solid #e2e8f0}
-    input, select {width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:16px}
+    input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:16px}
     .btn-save{background:var(--accent);color:#fff;border:none;padding:1rem;border-radius:8px;font-weight:bold;width:100%;cursor:pointer}
-    .expense-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:0.95rem}
+    
+    /* Lista com Design e Data */
+    .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9}
+    .exp-info{display:flex;flex-direction:column}
+    .exp-date{font-size:0.7rem;color:#94a3b8;font-weight:bold}
+    .exp-desc{font-size:0.95rem;color:#1e293b}
+    .exp-amt{font-weight:bold;color:#1e293b}
+
     .v-btn{padding:12px;border:none;border-radius:8px;font-weight:600;cursor:pointer;width:100%}
-    #hist-section { display: none; margin-top: 1rem; padding: 1rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
-    .filter-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
-    .f-btn { flex: 1; min-width: 60px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
-    .total-gasto-label { font-size: 1.1rem; font-weight: bold; text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px dashed #cbd5e1; }
-    .btn-clear{background:#ef4444;color:#fff;border:none;padding:1rem;border-radius:8px;width:100%;font-weight:bold;margin-top:15px}
-    .btn-danger-small { background:none; border:none; color:#ef4444; font-size:0.7rem; cursor:pointer; margin-top:10px; text-decoration:underline; width:100% }
+    #hist-section{display:none;margin-top:1rem;padding:1rem;background:#fff;border-radius:12px;border:1px solid #e2e8f0}
+    
+    /* Filtros Dropdown */
+    .filter-select{background:#fff;border:1px solid #6366f1;color:#6366f1;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:10px;cursor:pointer}
+    .total-gasto-label{font-size:1.2rem;font-weight:bold;text-align:center;padding:15px;background:#f1f5f9;border-radius:8px;margin-bottom:10px}
+    
+    .grid-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+    .btn-action{padding:12px;border-radius:8px;border:none;font-weight:bold;cursor:pointer;color:#fff}
+    .btn-blue{background:#3b82f6}
+    .btn-red{background:var(--danger)}
+    .btn-danger-link{background:none;border:none;color:var(--danger);font-size:0.75rem;text-decoration:underline;width:100%;margin-top:20px;cursor:pointer}
   </style>
 </head>
 <body>
 
   <div class="card">
-    <div class="total-box"><span id="totalSum">0.00</span> €</div>
+    <div class="total-box"><span id="totalSum">0.00</span>€</div>
     <div class="balance-grid">
       <div class="balance-item">👩 Sara<br><b id="balanceSara">0.00€</b></div>
       <div class="balance-item">👨 Rui<br><b id="balanceRui">0.00€</b></div>
     </div>
-    <div id="settlements" style="text-align:center; font-weight:bold; padding:10px; border-radius:8px"></div>
+    <div id="settlements" style="text-align:center;font-weight:bold;padding:10px;border-radius:8px"></div>
   </div>
 
   <div class="card">
-    <h4 style="margin-bottom:1rem; color:#64748b">➕ Nova Despesa</h4>
+    <h4 style="margin-bottom:1rem;color:#64748b">➕ Nova Despesa</h4>
     <form id="expenseForm">
       <select id="payer"><option value="Sara">Sara 👩</option><option value="Rui">Rui 👨</option></select>
       <input id="amount" type="number" step="0.01" placeholder="Valor €" required>
@@ -54,27 +65,38 @@
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <h4 style="color:#64748b">📋 Lista Atual</h4>
-      <button id="btnToggleHist" style="background:none; border:none; color:#6366f1; font-weight:bold; cursor:pointer">Análise de Gastos 📊</button>
+      <button id="btnToggleHist" style="background:none;border:none;color:#6366f1;font-weight:bold;cursor:pointer">Análise e Arquivo 📊</button>
     </div>
     <div id="list"></div>
-    <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid #f1f5f9">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #f1f5f9">
+      <p style="text-align:center;font-size:0.7rem;color:#94a3b8;margin-bottom:8px">APROVAÇÃO PARA FECHO</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <button id="archiveSara" class="v-btn">Sara 👩</button>
         <button id="archiveRui" class="v-btn">Rui 👨</button>
       </div>
     </div>
 
     <div id="hist-section">
-      <p style="font-size:0.85rem; font-weight:bold; margin-bottom:10px; color:#475569">Consultar Total Gasto:</p>
-      <div class="filter-group">
-        <button onclick="consultarTotal(7)" class="f-btn">7d</button>
-        <button onclick="consultarTotal(30)" class="f-btn">1m</button>
-        <button onclick="consultarTotal(90)" class="f-btn">3m</button>
-        <button onclick="consultarTotal(365)" class="f-btn">1 ano</button>
+      <p style="font-size:0.85rem;font-weight:bold;margin-bottom:5px">Filtrar por Período ▼</p>
+      <select class="filter-select" id="timeFilter" onchange="consultarTotal(this.value)">
+        <option value="0">Hoje</option>
+        <option value="7">Última Semana</option>
+        <option value="15">Últimos 15 dias</option>
+        <option value="30" selected>Último Mês</option>
+        <option value="90">Último Trimestre</option>
+        <option value="180">Último Semestre</option>
+        <option value="365">Último Ano</option>
+      </select>
+      
+      <div class="total-gasto-label">Total Gasto: <span id="histTotal">0.00</span>€</div>
+      
+      <div class="grid-btns">
+        <button id="btnDownload" class="btn-action btn-blue">📥 Gerar Report</button>
+        <button id="btnClearList" class="btn-action btn-red">🗑️ Limpar Lista</button>
       </div>
-      <div class="total-gasto-label">Total: <span id="histTotal">0.00</span>€</div>
-      <button id="clearBtn" class="btn-clear">🗑️ Gerar Word e Limpar Lista</button>
-      <button onclick="apagarTudoPermanente()" class="btn-danger-small">Apagar Histórico Permanente (Reset de Testes)</button>
+      <p id="msgAviso" style="font-size:0.7rem;color:var(--danger);text-align:center;margin-top:8px;display:none">Aguardando aprovação de ambos para limpar.</p>
+
+      <button onclick="apagarTudoPermanente()" class="btn-danger-link">Apagar histórico permanente para sempre</button>
     </div>
   </div>
 
