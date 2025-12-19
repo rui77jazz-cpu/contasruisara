@@ -11,31 +11,26 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
-    :root{--primary:#6366f1;--accent:#10b981;--bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
-    *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif}
-    body{background:var(--bg);min-height:100vh;padding:1rem;color:#1e293b}
-    .card{background:#fff;border-radius:1.2rem;padding:1.5rem;box-shadow:0 10px 25px rgba(0,0,0,.1);margin-bottom:1rem}
-    .total-box{background:var(--primary);color:#fff;padding:1.5rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2.2rem;font-weight:800}
+    :root{--primary:#6366f1;--accent:#10b981;--bg:#f4f7ff}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI', Roboto, sans-serif}
+    body{background:var(--bg);padding:1rem;color:#1e293b}
+    .card{background:#fff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem}
+    .total-box{background:linear-gradient(135deg, #6366f1, #4f46e5);color:#fff;padding:1.5rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2rem;font-weight:bold}
     .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
-    .balance-item{padding:1rem;border-radius:1rem;text-align:center;background:#f8fafc;border:1px solid #e2e8f0}
-    .settlement{padding:1rem;border-radius:.8rem;text-align:center;font-weight:600;margin-bottom:1rem}
-    .settlement.even{background:#d1fae5;color:#065f46}
-    .settlement.pay{background:#fee2e2;color:#991b1b;border:2px solid #fecaca}
-    
-    input, select {width:100%;padding:14px;margin-bottom:12px;border-radius:12px;border:1px solid #ddd;font-size:16px}
-    .btn-save{background:var(--accent);color:#fff;border:none;padding:1rem;border-radius:12px;font-weight:700;width:100%;cursor:pointer}
-    
-    .expense-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #eee}
-    .v-btn{padding:15px;border:none;border-radius:12px;font-weight:bold;cursor:pointer;width:100%}
-    
-    #hist-section { display: none; margin-top: 1.5rem; padding: 1rem; border-top: 2px dashed #eee; background: #fafafa; border-radius: 12px; }
-    .filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:15px}
-    .f-btn{padding:10px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer; font-weight: bold;}
-    .btn-clear{background:#ef4444;color:#fff;border:none;padding:1rem;border-radius:12px;width:100%;font-weight:700;margin-top:15px}
+    .balance-item{padding:1rem;border-radius:0.8rem;text-align:center;background:#fff;border:1px solid #e2e8f0}
+    input, select {width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:16px}
+    .btn-save{background:var(--accent);color:#fff;border:none;padding:1rem;border-radius:8px;font-weight:bold;width:100%;cursor:pointer}
+    .expense-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:0.95rem}
+    .v-btn{padding:12px;border:none;border-radius:8px;font-weight:600;cursor:pointer;width:100%}
+    #hist-section { display: none; margin-top: 1rem; padding: 1rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .filter-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+    .f-btn { flex: 1; min-width: 60px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+    .total-gasto-label { font-size: 1.1rem; font-weight: bold; text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px dashed #cbd5e1; }
+    .btn-clear{background:#ef4444;color:#fff;border:none;padding:1rem;border-radius:8px;width:100%;font-weight:bold;margin-top:15px}
+    .btn-danger-small { background:none; border:none; color:#ef4444; font-size:0.7rem; cursor:pointer; margin-top:10px; text-decoration:underline; width:100% }
   </style>
 </head>
 <body>
-  <div style="text-align:center;padding:1rem;color:#fff"><h1>💰 Sara & Rui</h1></div>
 
   <div class="card">
     <div class="total-box"><span id="totalSum">0.00</span> €</div>
@@ -43,11 +38,11 @@
       <div class="balance-item">👩 Sara<br><b id="balanceSara">0.00€</b></div>
       <div class="balance-item">👨 Rui<br><b id="balanceRui">0.00€</b></div>
     </div>
-    <div id="settlements" class="settlement even">✅ Tudo certo!</div>
+    <div id="settlements" style="text-align:center; font-weight:bold; padding:10px; border-radius:8px"></div>
   </div>
 
   <div class="card">
-    <h3 style="margin-bottom:1rem">➕ Nova Despesa</h3>
+    <h4 style="margin-bottom:1rem; color:#64748b">➕ Nova Despesa</h4>
     <form id="expenseForm">
       <select id="payer"><option value="Sara">Sara 👩</option><option value="Rui">Rui 👨</option></select>
       <input id="amount" type="number" step="0.01" placeholder="Valor €" required>
@@ -58,29 +53,28 @@
 
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <h3>📋 Lista Atual</h3>
-      <button id="btnToggleHist" style="background:#6366f1; border:none; padding:8px 15px; border-radius:8px; color:#fff; font-weight:600; cursor:pointer">📜 Histórico</button>
+      <h4 style="color:#64748b">📋 Lista Atual</h4>
+      <button id="btnToggleHist" style="background:none; border:none; color:#6366f1; font-weight:bold; cursor:pointer">Análise de Gastos 📊</button>
     </div>
-    
     <div id="list"></div>
-
-    <div style="margin-top:2rem; padding-top:1rem; border-top:1px solid #eee; text-align:center">
-      <p style="font-size:0.8rem; color:#64748b; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px; font-weight: bold;">Aprovar Arquivo</p>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+    <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid #f1f5f9">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
         <button id="archiveSara" class="v-btn">Sara 👩</button>
         <button id="archiveRui" class="v-btn">Rui 👨</button>
       </div>
     </div>
 
     <div id="hist-section">
-      <div class="filter-grid">
-        <button onclick="filtrarHist(7)" class="f-btn">7d</button>
-        <button onclick="filtrarHist(15)" class="f-btn">15d</button>
-        <button onclick="filtrarHist(30)" class="f-btn">30d</button>
+      <p style="font-size:0.85rem; font-weight:bold; margin-bottom:10px; color:#475569">Consultar Total Gasto:</p>
+      <div class="filter-group">
+        <button onclick="consultarTotal(7)" class="f-btn">7d</button>
+        <button onclick="consultarTotal(30)" class="f-btn">1m</button>
+        <button onclick="consultarTotal(90)" class="f-btn">3m</button>
+        <button onclick="consultarTotal(365)" class="f-btn">1 ano</button>
       </div>
-      <p>Total Filtrado: <b id="histTotal">0.00</b>€</p>
-      <div id="histList" style="max-height:200px; overflow-y:auto; font-size:0.85rem; margin-top:10px; color: #444"></div>
-      <button id="clearBtn" class="btn-clear">🗑️ Gerar Word e Limpar Tudo</button>
+      <div class="total-gasto-label">Total: <span id="histTotal">0.00</span>€</div>
+      <button id="clearBtn" class="btn-clear">🗑️ Gerar Word e Limpar Lista</button>
+      <button onclick="apagarTudoPermanente()" class="btn-danger-small">Apagar Histórico Permanente (Reset de Testes)</button>
     </div>
   </div>
 
