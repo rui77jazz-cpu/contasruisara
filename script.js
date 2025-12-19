@@ -11,11 +11,10 @@ if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 var db = firebase.firestore();
 var householdRef = db.collection("households").doc("sara_rui");
 
-// ID DO APARELHO PARA BLOQUEIO
 var myDeviceId = localStorage.getItem("myId") || "dev_" + Math.random().toString(36).substr(2, 9);
 localStorage.setItem("myId", myDeviceId);
 
-// --- 1. HISTÓRICO (ABRIR/FECHAR) ---
+// 1. HISTÓRICO
 document.getElementById("btnToggleHist").onclick = function(e) {
     e.preventDefault();
     var sec = document.getElementById("hist-section");
@@ -29,16 +28,18 @@ document.getElementById("btnToggleHist").onclick = function(e) {
     }
 };
 
-// --- 2. VOTAÇÃO ---
+// 2. VOTAÇÃO
 householdRef.onSnapshot(function(doc) {
     var data = doc.data() || {};
     var v = data.archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
     var bS = document.getElementById("archiveSara");
     var bR = document.getElementById("archiveRui");
-    bS.style.background = v.sara ? "#d1fae5" : "#f1f5f9";
-    bS.style.color = v.sara ? "#065f46" : "#64748b";
-    bR.style.background = v.rui ? "#d1fae5" : "#f1f5f9";
-    bR.style.color = v.rui ? "#065f46" : "#64748b";
+    if(bS && bR) {
+        bS.style.background = v.sara ? "#d1fae5" : "#f1f5f9";
+        bS.style.color = v.sara ? "#065f46" : "#64748b";
+        bR.style.background = v.rui ? "#d1fae5" : "#f1f5f9";
+        bR.style.color = v.rui ? "#065f46" : "#64748b";
+    }
     if(v.sara && v.rui) { setTimeout(archiveData, 1000); }
 });
 
@@ -49,7 +50,7 @@ async function processVote(pessoa) {
     var campo = pessoa.toLowerCase();
     var outro = (campo === "sara") ? "rui" : "sara";
     if (v[outro + "Dev"] === myDeviceId && !v[campo]) {
-        alert("Erro: O outro já votou neste aparelho!");
+        alert("Erro: Este aparelho já registou um voto!");
         return;
     }
     var up = {};
@@ -61,7 +62,7 @@ async function processVote(pessoa) {
 document.getElementById("archiveSara").onclick = () => processVote("Sara");
 document.getElementById("archiveRui").onclick = () => processVote("Rui");
 
-// --- 3. LISTA E CÁLCULOS ---
+// 3. LISTA
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(snap) {
     var list = document.getElementById("list");
     list.innerHTML = "";
@@ -84,7 +85,6 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(
     }
 });
 
-// --- 4. GUARDAR E ARQUIVAR ---
 document.getElementById("expenseForm").onsubmit = function(e) {
     e.preventDefault();
     householdRef.collection("expenses").add({
@@ -125,31 +125,49 @@ async function filtrarHist(dias) {
     document.getElementById("histList").innerHTML = html || "Sem registos.";
 }
 
-// --- 5. LIMPEZA TOTAL COM NOME ÚNICO PARA TELEMÓVEL ---
+// 4. DOWNLOAD BLINDADO (PC + TELEMÓVEL)
 document.getElementById("clearBtn").onclick = async function() {
     if(!confirm("Gerar relatório e LIMPAR TUDO?")) return;
+    
     const cur = await householdRef.collection("expenses").get();
     const his = await householdRef.collection("historico").get();
     let data = [];
     [...cur.docs, ...his.docs].forEach(d => data.push(d.data()));
 
-    const { Document, Packer, Paragraph } = docx;
-    const doc = new Document({ sections: [{ children: [
-        new Paragraph({ text: "RELATÓRIO SARA & RUI", heading: "Heading1" }),
-        ...data.map(e => new Paragraph({ text: `${e.date} - ${e.payer}: ${e.description} (${e.amount.toFixed(2)}€)` }))
-    ]}]});
+    const { Document, Packer, Paragraph, TextRun } = docx;
+    const doc = new Document({
+        sections: [{
+            children: [
+                new Paragraph({ children: [new TextRun({ text: "RELATÓRIO DE CONTAS - SARA & RUI", bold: true, size: 32 })] }),
+                ...data.map(e => new Paragraph({ text: `${e.date} - ${e.payer}: ${e.description} (${e.amount.toFixed(2)}€)` }))
+            ]
+        }]
+    });
 
     Packer.toBlob(doc).then(blob => {
         const agora = new Date();
         const nomeFinal = `Contas_${agora.getDate()}_${agora.getMonth()+1}_${agora.getHours()}h${agora.getMinutes()}.docx`;
         
-        saveAs(blob, nomeFinal);
+        // MÉTODO COMPATÍVEL COM COMPUTADOR
+        if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+            window.navigator.msSaveOrOpenBlob(blob, nomeFinal);
+        } else {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = nomeFinal;
+            document.body.appendChild(a);
+            a.click(); // Força o clique no computador
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
         
+        // APAGAR APÓS DOWNLOAD
         let b = db.batch();
         cur.docs.forEach(d => b.delete(d.ref));
         his.docs.forEach(d => b.delete(d.ref));
         b.commit().then(() => {
-            alert("Relatório guardado como: " + nomeFinal);
+            alert("Sucesso! Relatório gerado.");
             location.reload();
         });
     });
