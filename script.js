@@ -1,3 +1,4 @@
+
 // --- Firebase Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyCle9Kx3OVD7mnZfXubKyIGW6COYrGI304",
@@ -38,22 +39,20 @@ document.addEventListener("DOMContentLoaded", function() {
   var saraBtn = document.getElementById("archiveSara");
   var ruiBtn = document.getElementById("archiveRui");
   var statusEl = document.getElementById("archive-status");
-  var currentPeriod = 7; // Período selecionado (dias)
+  var currentPeriod = 7;
   
   // --- ESCUTAR VOTOS EM TEMPO REAL ---
   householdRef.onSnapshot(function(doc) {
     var data = doc.data() || {};
-    var votes = data.archiveVotes || { sara: null, rui: null };
+    var votes = data.archiveVotes || { saraDevice: null, ruiDevice: null };
     updateArchiveUI(votes);
   });
 
   function updateArchiveUI(votes) {
-    var saraVoted = votes.sara !== null;
-    var ruiVoted = votes.rui !== null;
-    var iVotedSara = votes.sara === myDeviceId;
-    var iVotedRui = votes.rui === myDeviceId;
+    var saraVoted = votes.saraDevice !== null;
+    var ruiVoted = votes.ruiDevice !== null;
     
-    // Botão Sara
+    // Botão Sara - só muda se Sara votou
     if (saraVoted) {
       saraBtn.classList.add("approved");
       saraBtn.innerHTML = "👩 Sara ✓";
@@ -63,7 +62,7 @@ document.addEventListener("DOMContentLoaded", function() {
       saraBtn.innerHTML = "👩 Sara";
     }
     
-    // Botão Rui
+    // Botão Rui - só muda se Rui votou
     if (ruiVoted) {
       ruiBtn.classList.add("approved");
       ruiBtn.innerHTML = "👨 Rui ✓";
@@ -78,22 +77,14 @@ document.addEventListener("DOMContentLoaded", function() {
       statusEl.style.display = "block";
       statusEl.className = "archive-status success";
       statusEl.innerHTML = "✅ Ambos aprovaram! A arquivar...";
-    } else if (saraVoted) {
+    } else if (saraVoted && !ruiVoted) {
       statusEl.style.display = "block";
       statusEl.className = "archive-status waiting";
-      if (iVotedSara) {
-        statusEl.innerHTML = "⏳ Votaste como Sara. Aguarda o Rui!";
-      } else {
-        statusEl.innerHTML = "⏳ 👩 Sara já aprovou. Falta o Rui!";
-      }
-    } else if (ruiVoted) {
+      statusEl.innerHTML = "⏳ 👩 Sara aprovou. Falta o 👨 Rui!";
+    } else if (ruiVoted && !saraVoted) {
       statusEl.style.display = "block";
       statusEl.className = "archive-status waiting";
-      if (iVotedRui) {
-        statusEl.innerHTML = "⏳ Votaste como Rui. Aguarda a Sara!";
-      } else {
-        statusEl.innerHTML = "⏳ 👨 Rui já aprovou. Falta a Sara!";
-      }
+      statusEl.innerHTML = "⏳ 👨 Rui aprovou. Falta a 👩 Sara!";
     } else {
       statusEl.style.display = "none";
     }
@@ -103,25 +94,25 @@ document.addEventListener("DOMContentLoaded", function() {
   saraBtn.onclick = function() {
     householdRef.get().then(function(doc) {
       var data = doc.data() || {};
-      var votes = data.archiveVotes || { sara: null, rui: null };
+      var votes = data.archiveVotes || { saraDevice: null, ruiDevice: null };
       
-      // Verificar se já votou (como Sara ou Rui)
-      if (votes.sara === myDeviceId || votes.rui === myDeviceId) {
-        alert("⚠️ Este aparelho já votou! Aguarda a outra pessoa votar de outro aparelho.");
+      // JÁ VOTOU COMO SARA?
+      if (votes.saraDevice !== null) {
+        alert("👩 Sara já votou!");
         return;
       }
       
-      // Verificar se Sara já votou
-      if (votes.sara !== null) {
-        alert("👩 Sara já aprovou! Aguarda ou vota como Rui.");
+      // ESTE APARELHO JÁ VOTOU COMO RUI?
+      if (votes.ruiDevice === myDeviceId) {
+        alert("⚠️ Este aparelho já votou como Rui!\nPrecisas de outro aparelho para votar como Sara.");
         return;
       }
       
-      votes.sara = myDeviceId;
+      // REGISTAR VOTO DA SARA
+      votes.saraDevice = myDeviceId;
       householdRef.set({ archiveVotes: votes }, { merge: true }).then(function() {
-        if (votes.sara && votes.rui) {
-          saraBtn.classList.add("done");
-          ruiBtn.classList.add("done");
+        // Verificar se ambos votaram
+        if (votes.saraDevice && votes.ruiDevice) {
           setTimeout(doArchive, 1500);
         }
       });
@@ -132,25 +123,25 @@ document.addEventListener("DOMContentLoaded", function() {
   ruiBtn.onclick = function() {
     householdRef.get().then(function(doc) {
       var data = doc.data() || {};
-      var votes = data.archiveVotes || { sara: null, rui: null };
+      var votes = data.archiveVotes || { saraDevice: null, ruiDevice: null };
       
-      // Verificar se já votou (como Sara ou Rui)
-      if (votes.sara === myDeviceId || votes.rui === myDeviceId) {
-        alert("⚠️ Este aparelho já votou! Aguarda a outra pessoa votar de outro aparelho.");
+      // JÁ VOTOU COMO RUI?
+      if (votes.ruiDevice !== null) {
+        alert("👨 Rui já votou!");
         return;
       }
       
-      // Verificar se Rui já votou
-      if (votes.rui !== null) {
-        alert("👨 Rui já aprovou! Aguarda ou vota como Sara.");
+      // ESTE APARELHO JÁ VOTOU COMO SARA?
+      if (votes.saraDevice === myDeviceId) {
+        alert("⚠️ Este aparelho já votou como Sara!\nPrecisas de outro aparelho para votar como Rui.");
         return;
       }
       
-      votes.rui = myDeviceId;
+      // REGISTAR VOTO DO RUI
+      votes.ruiDevice = myDeviceId;
       householdRef.set({ archiveVotes: votes }, { merge: true }).then(function() {
-        if (votes.sara && votes.rui) {
-          saraBtn.classList.add("done");
-          ruiBtn.classList.add("done");
+        // Verificar se ambos votaram
+        if (votes.saraDevice && votes.ruiDevice) {
           setTimeout(doArchive, 1500);
         }
       });
@@ -170,13 +161,13 @@ document.addEventListener("DOMContentLoaded", function() {
       var archivedAt = new Date().toISOString();
       
       snap.docs.forEach(function(doc) {
-        var data = doc.data();
+        var expData = doc.data();
         var histRef = householdRef.collection("historico").doc();
         batch.set(histRef, {
-          payer: data.payer,
-          amount: data.amount,
-          date: data.date,
-          description: data.description,
+          payer: expData.payer,
+          amount: expData.amount,
+          date: expData.date,
+          description: expData.description,
           archivedAt: archivedAt
         });
         batch.delete(doc.ref);
@@ -195,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   function resetVotes() {
-    householdRef.set({ archiveVotes: { sara: null, rui: null } }, { merge: true });
+    householdRef.set({ archiveVotes: { saraDevice: null, ruiDevice: null } }, { merge: true });
   }
 
   // --- DESPESAS EM TEMPO REAL ---
@@ -309,7 +300,6 @@ document.addEventListener("DOMContentLoaded", function() {
       
       snap.forEach(function(doc) {
         var d = doc.data();
-        // Filtrar por data
         if (d.date >= startDate) {
           total += d.amount || 0;
           if (d.payer === "Sara") totalSara += d.amount || 0;
@@ -318,7 +308,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       });
       
-      // Calcular média diária
       var avgPerDay = days > 0 ? (total / days) : (count > 0 ? (total / 30) : 0);
       
       document.getElementById("report-total").textContent = total.toFixed(0) + " €";
@@ -326,15 +315,11 @@ document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("report-rui").textContent = totalRui.toFixed(0) + " €";
       document.getElementById("report-avg").textContent = avgPerDay.toFixed(1) + " €";
       
-      // Mostrar período
-      var periodText = "";
-      if (days === 0) {
-        periodText = count + " despesa(s) no total";
-      } else {
-        periodText = count + " despesa(s) nos últimos " + days + " dias";
-      }
+      var periodText = days === 0 
+        ? count + " despesa(s) no total" 
+        : count + " despesa(s) nos últimos " + days + " dias";
       document.getElementById("report-period").textContent = periodText;
     });
   }
 
-}); // Fim do DOMContentLoaded
+});
