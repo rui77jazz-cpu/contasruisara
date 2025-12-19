@@ -22,12 +22,11 @@
     .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9}
     .exp-info{display:flex;flex-direction:column}
     .exp-date{font-size:0.75rem;color:#6366f1;font-weight:bold}
-    .exp-desc{font-size:0.95rem;color:#1e293b}
-    .v-btn{padding:15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;width:100%;background:#f1f5f9;color:#64748b;transition: 0.3s}
+    .v-btn{padding:15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;width:100%;background:#f1f5f9;color:#64748b}
     #hist-section{display:none;margin-top:1rem;padding:1rem;background:#fff;border-radius:12px;border:1px solid #e2e8f0}
     .filter-select{width:100%;padding:10px;border-radius:8px;border:1px solid #6366f1;color:#6366f1;font-weight:bold;margin-bottom:10px}
-    .total-gasto-label{font-size:1.1rem;font-weight:bold;text-align:center;padding:12px;background:#f1f5f9;border-radius:8px}
-    .btn-report{padding:12px;border-radius:8px;border:none;font-weight:bold;cursor:pointer;color:#fff;background:#3b82f6;width:100%;margin-top:10px}
+    .total-gasto-label{font-size:1.1rem;font-weight:bold;text-align:center;padding:12px;background:#f1f5f9;border-radius:8px;margin-bottom:10px}
+    .btn-report-hist{background:#3b82f6;color:#fff;border:none;padding:10px;border-radius:8px;width:100%;font-weight:bold;cursor:pointer}
     .btn-danger-link{background:none;border:none;color:var(--danger);font-size:0.7rem;text-decoration:underline;width:100%;margin-top:20px;cursor:pointer}
   </style>
 </head>
@@ -54,33 +53,33 @@
 
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <h4 style="color:#64748b">📋 Lista Atual</h4>
+      <h4 style="color:#64748b">📋 Lista Atual (Aberto)</h4>
       <button id="btnToggleHist" style="background:none;border:none;color:#6366f1;font-weight:bold;cursor:pointer">Arquivo Permanente 📊</button>
     </div>
     <div id="list"></div>
     
     <div style="margin-top:1.5rem;padding-top:1rem;border-top:2px solid #6366f1">
-      <p style="text-align:center;font-size:0.8rem;font-weight:bold;color:#6366f1;margin-bottom:10px;text-transform:uppercase">Validar Fecho de Contas</p>
+      <p style="text-align:center;font-size:0.8rem;font-weight:bold;color:#6366f1;margin-bottom:10px">✅ ARQUIVAR E SALDAR</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button id="archiveSara" class="v-btn">Sara 👩 (OK)</button>
-        <button id="archiveRui" class="v-btn">Rui 👨 (OK)</button>
+        <button id="archiveSara" class="v-btn">Sara 👩</button>
+        <button id="archiveRui" class="v-btn">Rui 👨</button>
       </div>
-      <p style="font-size:0.7rem;color:#94a3b8;text-align:center;margin-top:8px">Quando ambos aprovarem, o sistema gera o relatório e limpa as contas automaticamente.</p>
     </div>
 
     <div id="hist-section">
-      <p style="font-size:0.8rem;font-weight:bold;margin-bottom:5px">Consultar Arquivo (Estatística):</p>
+      <p style="font-size:0.8rem;font-weight:bold;margin-bottom:5px">Relatório de Arquivados:</p>
       <select class="filter-select" id="timeFilter" onchange="consultarTotal(this.value)">
         <option value="0">Hoje</option>
         <option value="7">Última Semana</option>
         <option value="15">Últimos 15 dias</option>
         <option value="30" selected>Último Mês</option>
         <option value="90">Último Trimestre</option>
-        <option value="180">Último Semestre</option>
         <option value="365">Último Ano</option>
       </select>
       <div class="total-gasto-label">Total Gasto: <span id="histTotal">0.00</span>€</div>
-      <button onclick="apagarTudoPermanente()" class="btn-danger-link">Apagar histórico permanente (Cuidado!)</button>
+      <button id="btnDownloadHist" class="btn-report-hist">📥 Gerar Report do Período</button>
+      
+      <button onclick="apagarTudoPermanente()" class="btn-danger-link">Limpar Base de Dados Eterna</button>
     </div>
   </div>
 
