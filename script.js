@@ -18,34 +18,33 @@ let expenses = [];
 
 function formatDate(isoDate) {
   if (!isoDate) return '';
-  const parts = isoDate.split('-');
-  return `${parts[2]}/${parts[1]}`;
+  var parts = isoDate.split('-');
+  return parts[2] + '/' + parts[1];
 }
 
 function getDateDaysAgo(days) {
-  const date = new Date();
+  var date = new Date();
   date.setDate(date.getDate() - days);
   return date.toISOString().slice(0, 10);
 }
 
 // Renderizar despesa ativa
 function renderExpense(doc) {
-  const e = doc.data();
-  const item = document.createElement("div");
+  var e = doc.data();
+  var item = document.createElement("div");
   item.className = "expense-item";
 
-  const emoji = e.payer === 'Sara' ? '👩' : '👨';
+  var emoji = e.payer === 'Sara' ? '👩' : '👨';
 
-  item.innerHTML = `
-    <div class="info">
-      <span class="payer">${emoji} ${e.payer}</span>
-      <span class="desc">${e.description || ''} · ${formatDate(e.date)}</span>
-    </div>
-    <div class="right">
-      <span class="amount">${(e.amount || 0).toFixed(2)} €</span>
-      <button class="delete-btn" data-id="${doc.id}">🗑️</button>
-    </div>
-  `;
+  item.innerHTML = 
+    '<div class="info">' +
+      '<span class="payer">' + emoji + ' ' + e.payer + '</span>' +
+      '<span class="desc">' + (e.description || '') + ' · ' + formatDate(e.date) + '</span>' +
+    '</div>' +
+    '<div class="right">' +
+      '<span class="amount">' + (e.amount || 0).toFixed(2) + ' €</span>' +
+      '<button class="delete-btn" data-id="' + doc.id + '">🗑️</button>' +
+    '</div>';
 
   item.querySelector('.delete-btn').addEventListener('click', function() {
     deleteExpense(doc.id);
@@ -53,25 +52,12 @@ function renderExpense(doc) {
   return item;
 }
 
-// Renderizar item do histórico
-function renderHistoryItem(data) {
-  const item = document.createElement("div");
-  item.className = "history-item";
-  const emoji = data.payer === 'Sara' ? '👩' : '👨';
-
-  item.innerHTML = `
-    <div class="info"><strong>${emoji} ${data.payer}</strong> · ${data.description || ''} · ${formatDate(data.date)}</div>
-    <span class="amount">${(data.amount || 0).toFixed(2)} €</span>
-  `;
-  return item;
-}
-
 // Atualizar saldo
 function updateBalance(expensesList) {
-  let totalSara = 0, totalRui = 0, total = 0;
+  var totalSara = 0, totalRui = 0, total = 0;
 
   expensesList.forEach(function(e) {
-    const amt = e.amount || 0;
+    var amt = e.amount || 0;
     total += amt;
     if (e.payer === 'Sara') totalSara += amt;
     else totalRui += amt;
@@ -81,17 +67,17 @@ function updateBalance(expensesList) {
   document.getElementById("balanceRui").textContent = totalRui.toFixed(2);
   document.getElementById("totalSum").textContent = total.toFixed(2);
 
-  const settlementsEl = document.getElementById("settlements");
+  var settlementsEl = document.getElementById("settlements");
 
   if (Math.abs(totalSara - totalRui) < 0.01) {
     settlementsEl.className = "settlement even";
     settlementsEl.innerHTML = "✅ Tudo certo!";
   } else if (totalSara > totalRui) {
-    const diff = (totalSara - totalRui) / 2;
+    var diff = (totalSara - totalRui) / 2;
     settlementsEl.className = "settlement pay";
     settlementsEl.innerHTML = '👨 Rui deve <strong>' + diff.toFixed(2) + ' €</strong> a 👩 Sara';
   } else {
-    const diff = (totalRui - totalSara) / 2;
+    var diff = (totalRui - totalSara) / 2;
     settlementsEl.className = "settlement pay";
     settlementsEl.innerHTML = '👩 Sara deve <strong>' + diff.toFixed(2) + ' €</strong> a 👨 Rui';
   }
@@ -100,50 +86,112 @@ function updateBalance(expensesList) {
 // --- CRUD ---
 
 function addExpense(payer, amount, date, description) {
-  console.log("A guardar despesa:", payer, amount, date, description);
-  
   return db.collection("households").doc("sara_rui").collection("expenses").add({
     payer: payer,
     amount: amount,
     date: date,
     description: description
-  }).then(function(docRef) {
-    console.log("Despesa guardada com ID:", docRef.id);
-    return docRef;
-  }).catch(function(error) {
-    console.error("Erro ao guardar despesa:", error);
-    throw error;
   });
 }
 
 function deleteExpense(expenseId) {
   if (!confirm("Apagar esta despesa?")) return;
   
-  console.log("A apagar despesa:", expenseId);
-  
   db.collection("households").doc("sara_rui").collection("expenses").doc(expenseId).delete()
     .then(function() {
-      console.log("Despesa apagada");
       loadExpenses();
     })
     .catch(function(error) {
-      console.error("Erro ao apagar:", error);
       alert("Erro ao apagar: " + error.message);
     });
 }
 
-function clearAllExpenses() {
-  if (!confirm("📁 Arquivar todas as despesas?\n\nFicam guardadas no histórico.")) return;
+// --- Sistema de Dupla Aprovação ---
 
-  console.log("A arquivar despesas...");
-  var status = document.getElementById("loading-status");
-  status.textContent = "A arquivar...";
+function loadArchiveVotes() {
+  return db.collection("households").doc("sara_rui").get()
+    .then(function(doc) {
+      if (doc.exists && doc.data().archiveVotes) {
+        return doc.data().archiveVotes;
+      }
+      return { sara: false, rui: false };
+    })
+    .catch(function() {
+      return { sara: false, rui: false };
+    });
+}
+
+function updateArchiveButtons(votes) {
+  var saraBtn = document.getElementById("archiveSara");
+  var ruiBtn = document.getElementById("archiveRui");
+  var statusEl = document.getElementById("archive-status");
+
+  if (votes.sara) {
+    saraBtn.classList.add("approved");
+    saraBtn.textContent = "👩 Sara ✓";
+  } else {
+    saraBtn.classList.remove("approved");
+    saraBtn.textContent = "👩 Sara aprova";
+  }
+
+  if (votes.rui) {
+    ruiBtn.classList.add("approved");
+    ruiBtn.textContent = "👨 Rui ✓";
+  } else {
+    ruiBtn.classList.remove("approved");
+    ruiBtn.textContent = "👨 Rui aprova";
+  }
+
+  if (votes.sara && votes.rui) {
+    statusEl.textContent = "✅ Ambos aprovaram! A arquivar...";
+  } else if (votes.sara) {
+    statusEl.textContent = "⏳ A aguardar aprovação do Rui...";
+  } else if (votes.rui) {
+    statusEl.textContent = "⏳ A aguardar aprovação da Sara...";
+  } else {
+    statusEl.textContent = "";
+  }
+}
+
+function voteToArchive(person) {
+  var voteField = person === 'Sara' ? 'archiveVotes.sara' : 'archiveVotes.rui';
+  
+  // Atualizar voto no Firestore
+  var updateData = {};
+  updateData[voteField] = true;
+  
+  db.collection("households").doc("sara_rui").set(updateData, { merge: true })
+    .then(function() {
+      return loadArchiveVotes();
+    })
+    .then(function(votes) {
+      updateArchiveButtons(votes);
+      
+      // Se ambos aprovaram, arquivar
+      if (votes.sara && votes.rui) {
+        doArchive();
+      }
+    })
+    .catch(function(error) {
+      alert("Erro: " + error.message);
+    });
+}
+
+function resetArchiveVotes() {
+  return db.collection("households").doc("sara_rui").set({
+    archiveVotes: { sara: false, rui: false }
+  }, { merge: true });
+}
+
+function doArchive() {
+  var statusEl = document.getElementById("archive-status");
+  statusEl.textContent = "📁 A arquivar...";
 
   db.collection("households").doc("sara_rui").collection("expenses").get()
     .then(function(snap) {
       if (snap.empty) {
-        alert("Não há despesas para arquivar.");
-        return Promise.resolve();
+        statusEl.textContent = "Não há despesas para arquivar.";
+        return resetArchiveVotes();
       }
 
       var batch = db.batch();
@@ -165,19 +213,26 @@ function clearAllExpenses() {
       });
 
       return batch.commit().then(function() {
-        alert("✅ " + count + " despesa(s) arquivada(s)!");
+        return count;
       });
+    })
+    .then(function(count) {
+      if (count) {
+        alert("✅ " + count + " despesa(s) arquivada(s)!");
+      }
+      return resetArchiveVotes();
     })
     .then(function() {
       loadExpenses();
+      loadArchiveVotes().then(updateArchiveButtons);
+      
       var activeTab = document.querySelector('.tab-btn.active');
       if (activeTab) {
         loadReport(parseInt(activeTab.getAttribute('data-days')));
       }
     })
     .catch(function(error) {
-      console.error("Erro ao arquivar:", error);
-      alert("Erro ao arquivar: " + error.message);
+      statusEl.textContent = "Erro: " + error.message;
     });
 }
 
@@ -187,13 +242,10 @@ function loadExpenses() {
   list.innerHTML = "";
   status.textContent = "A carregar...";
 
-  console.log("A carregar despesas...");
-
   db.collection("households").doc("sara_rui").collection("expenses")
     .orderBy("date", "desc")
     .get()
     .then(function(snap) {
-      console.log("Despesas carregadas:", snap.size);
       expenses = [];
       
       snap.forEach(function(doc) {
@@ -210,7 +262,6 @@ function loadExpenses() {
       }
     })
     .catch(function(error) {
-      console.error("Erro ao carregar despesas:", error);
       status.textContent = "Erro: " + error.message;
     });
 }
@@ -218,24 +269,14 @@ function loadExpenses() {
 // --- Relatórios ---
 
 function loadReport(days) {
-  var reportList = document.getElementById("report-list");
   var status = document.getElementById("report-status");
-
-  reportList.innerHTML = "";
   status.textContent = "A carregar...";
 
-  console.log("A carregar relatório para", days, "dias");
-
-  // Buscar todos os dados do histórico e filtrar no cliente
-  // (evita necessidade de índice composto no Firestore)
   db.collection("households").doc("sara_rui").collection("historico")
     .get()
     .then(function(snap) {
-      console.log("Histórico carregado:", snap.size, "registos");
-
       if (snap.empty) {
         status.textContent = "Sem dados";
-        reportList.innerHTML = '<div class="no-data">📭 Nada por aqui</div>';
         document.getElementById("report-total").textContent = "0 €";
         document.getElementById("report-sara").textContent = "0 €";
         document.getElementById("report-rui").textContent = "0 €";
@@ -250,7 +291,6 @@ function loadReport(days) {
       snap.forEach(function(doc) {
         var data = doc.data();
         
-        // Filtrar por data
         if (data.date >= startDate) {
           historyData.push(data);
           var amt = data.amount || 0;
@@ -260,14 +300,8 @@ function loadReport(days) {
         }
       });
 
-      // Ordenar por data (mais recente primeiro)
-      historyData.sort(function(a, b) {
-        return (b.date || '').localeCompare(a.date || '');
-      });
-
       if (historyData.length === 0) {
         status.textContent = "Sem dados neste período";
-        reportList.innerHTML = '<div class="no-data">📭 Nada por aqui</div>';
         document.getElementById("report-total").textContent = "0 €";
         document.getElementById("report-sara").textContent = "0 €";
         document.getElementById("report-rui").textContent = "0 €";
@@ -282,15 +316,10 @@ function loadReport(days) {
       document.getElementById("report-sara").textContent = totalSara.toFixed(0) + " €";
       document.getElementById("report-rui").textContent = totalRui.toFixed(0) + " €";
       document.getElementById("report-avg").textContent = media.toFixed(1) + " €";
-
-      historyData.forEach(function(data) {
-        reportList.appendChild(renderHistoryItem(data));
-      });
       
       status.textContent = historyData.length + " registo(s)";
     })
     .catch(function(error) {
-      console.error("Erro ao carregar relatório:", error);
       status.textContent = "Erro: " + error.message;
     });
 }
@@ -311,14 +340,11 @@ function calcularDias(historyData) {
 // --- Init ---
 
 document.addEventListener("DOMContentLoaded", function() {
-  console.log("DOM carregado, a inicializar...");
-  
   var form = document.getElementById("expenseForm");
   
   if (form) {
     form.addEventListener("submit", function(ev) {
       ev.preventDefault();
-      console.log("Formulário submetido");
 
       var payerEl = document.getElementById("payer");
       var amountEl = document.getElementById("amount");
@@ -329,8 +355,6 @@ document.addEventListener("DOMContentLoaded", function() {
       var amount = Math.round(amountValue * 100) / 100;
       var description = descriptionEl.value.trim();
       var date = new Date().toISOString().slice(0, 10);
-
-      console.log("Valores:", payer, amount, description, date);
 
       if (!payer) {
         alert("Escolhe quem pagou");
@@ -350,7 +374,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
       addExpense(payer, amount, date, description)
         .then(function() {
-          console.log("Despesa adicionada com sucesso");
           form.reset();
           payerEl.value = "";
           return loadExpenses();
@@ -359,27 +382,28 @@ document.addEventListener("DOMContentLoaded", function() {
           status.textContent = "✅ Guardado!";
         })
         .catch(function(error) {
-          console.error("Erro:", error);
           status.textContent = "Erro: " + error.message;
           alert("Erro ao guardar: " + error.message);
         });
     });
-  } else {
-    console.error("Formulário não encontrado!");
   }
 
-  var clearBtn = document.getElementById("clearAllBtn");
-  if (clearBtn) {
-    clearBtn.addEventListener("click", clearAllExpenses);
-  }
+  // Botões de arquivar
+  document.getElementById("archiveSara").addEventListener("click", function() {
+    voteToArchive('Sara');
+  });
+  
+  document.getElementById("archiveRui").addEventListener("click", function() {
+    voteToArchive('Rui');
+  });
 
+  // Tabs do relatório
   var tabBtns = document.querySelectorAll('.tab-btn');
   tabBtns.forEach(function(btn) {
     btn.addEventListener('click', function() {
       tabBtns.forEach(function(b) { b.classList.remove('active'); });
       btn.classList.add('active');
       var days = parseInt(btn.getAttribute('data-days'));
-      console.log("Tab clicado:", days, "dias");
       loadReport(days);
     });
   });
@@ -387,4 +411,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // Carregar dados iniciais
   loadExpenses();
   loadReport(7);
+  
+  // Carregar estado dos votos de arquivamento
+  loadArchiveVotes().then(updateArchiveButtons);
 });
