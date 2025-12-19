@@ -9,6 +9,12 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// Identificador único para este aparelho (browser)
+if(!localStorage.getItem("device_id")) {
+    localStorage.setItem("device_id", "dev_" + Math.random().toString(36).substr(2, 9));
+}
+const deviceId = localStorage.getItem("device_id");
+
 function loadExpenses() {
   db.collection("households").doc("sara_rui").collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     const list = document.getElementById("list"); list.innerHTML = "";
@@ -18,7 +24,7 @@ function loadExpenses() {
       if (e.payer === 'Sara') s += e.amount; else r += e.amount;
       const div = document.createElement("div"); div.className = "expense-item";
       div.innerHTML = `<div><strong>${e.payer=='Sara'?'👩':'👨'} ${e.description}</strong><br><small>${e.date}</small></div>
-                       <div>${e.amount.toFixed(2)}€ <button onclick="deleteExp('${doc.id}')">🗑️</button></div>`;
+                       <div>${e.amount.toFixed(2)}€ <button onclick="deleteExp('${doc.id}')" style="background:none;border:none;cursor:pointer">🗑️</button></div>`;
       list.appendChild(div);
     });
     document.getElementById("totalSum").textContent = t.toFixed(2);
@@ -31,52 +37,52 @@ function loadExpenses() {
   });
 }
 
-// --- Lógica de Arquivo Melhorada ---
-const btn = document.getElementById("mainArchiveBtn");
-const info = document.getElementById("archive-info");
-
 function updateArchiveUI() {
-  db.collection("households").doc("sara_rui").get().then(doc => {
-    const votes = doc.data().archiveVotes || { count: 0 };
-    const hasVoted = localStorage.getItem("voted_archive");
+  db.collection("households").doc("sara_rui").onSnapshot(doc => {
+    const data = doc.data() || {};
+    const votes = data.archiveVotes || [];
+    const btn = document.getElementById("mainArchiveBtn");
+    const info = document.getElementById("archive-info");
+    const alreadyVoted = votes.includes(deviceId);
 
-    if (votes.count === 0) {
+    if (votes.length === 0) {
       btn.className = "btn"; btn.textContent = "📁 Arquivar Contas";
       info.textContent = "Falta a aprovação dos dois";
-      localStorage.removeItem("voted_archive");
-    } else if (votes.count === 1) {
+    } else if (votes.length === 1) {
       btn.className = "btn waiting";
-      btn.textContent = hasVoted ? "⏳ Aguardando o outro..." : "⚠️ Falta 1 aprovação!";
-      info.textContent = hasVoted ? "Tu já aprovaste. Falta a outra pessoa." : "Uma pessoa já aprovou. Clica para confirmar.";
+      btn.textContent = alreadyVoted ? "⏳ Aguardando Sara/Rui..." : "⚠️ Falta 1 aprovação!";
+      info.textContent = alreadyVoted ? "Tu já aprovaste. Falta a outra pessoa." : "Uma pessoa já aprovou. Clica para arquivar.";
     }
   });
 }
 
-btn.onclick = () => {
-  if (localStorage.getItem("voted_archive")) {
-    alert("Tu já aprovaste! Agora a outra pessoa tem de clicar no telemóvel dela.");
-    return;
-  }
+document.getElementById("mainArchiveBtn").onclick = function() {
+  const docRef = db.collection("households").doc("sara_rui");
+  
+  docRef.get().then(doc => {
+    let votes = (doc.data() && doc.data().archiveVotes) || [];
+    
+    if (votes.includes(deviceId)) {
+      alert("Tu já aprovaste no teu telemóvel! Agora a outra pessoa tem de clicar no telemóvel dela.");
+      return;
+    }
 
-  db.collection("households").doc("sara_rui").get().then(doc => {
-    let votes = doc.data().archiveVotes || { count: 0 };
-    votes.count += 1;
+    votes.push(deviceId);
     
-    localStorage.setItem("voted_archive", "true"); // Marca este aparelho
-    
-    db.collection("households").doc("sara_rui").update({ archiveVotes: votes }).then(() => {
-      if (votes.count >= 2) {
+    docRef.update({ archiveVotes: votes }).then(() => {
+      if (votes.length >= 2) {
         doArchive();
-      } else {
-        updateArchiveUI();
       }
     });
   });
 };
 
 function doArchive() {
-  info.textContent = "🚀 A arquivar tudo...";
+  const status = document.getElementById("archive-info");
+  status.textContent = "🚀 A arquivar tudo...";
+  
   db.collection("households").doc("sara_rui").collection("expenses").get().then(snap => {
+    if (snap.empty) { resetVotes(); return; }
     let batch = db.batch();
     snap.docs.forEach(doc => {
       const hRef = db.collection("households").doc("sara_rui").collection("historico").doc();
@@ -84,12 +90,14 @@ function doArchive() {
       batch.delete(doc.ref);
     });
     batch.commit().then(() => {
-      db.collection("households").doc("sara_rui").update({ "archiveVotes.count": 0 });
-      localStorage.removeItem("voted_archive");
+      resetVotes();
       alert("✅ Contas enviadas para o histórico!");
-      loadReport(7);
     });
   });
+}
+
+function resetVotes() {
+  db.collection("households").doc("sara_rui").update({ archiveVotes: [] });
 }
 
 function loadReport(days) {
@@ -99,7 +107,7 @@ function loadReport(days) {
     document.getElementById("report-total").textContent = t.toFixed(0)+"€";
     document.getElementById("report-sara").textContent = s.toFixed(0)+"€";
     document.getElementById("report-rui").textContent = r.toFixed(0)+"€";
-    document.getElementById("report-avg").textContent = (t/(days||30)).toFixed(1)+"€";
+    document.getElementById("report-avg").textContent = c > 0 ? (t/(days||30)).toFixed(1)+"€" : "0€";
   });
 }
 
