@@ -7,63 +7,52 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <style>
-    :root{
-      --primary:#6366f1; --accent:#10b981; --warning:#f59e0b; --text:#1e293b; --muted:#64748b;
-      --bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%); --card:#fff; --border:#e2e8f0; --r:1rem;
-    }
+    :root{--p:#6366f1;--a:#10b981;--w:#f59e0b;--bg:linear-gradient(135deg,#667eea,#764ba2);--c:#fff}
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);min-height:100vh;padding:1rem;color:var(--text)}
-    .app{max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
-    .card{background:var(--card);border-radius:var(--r);padding:1.25rem;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1)}
-    .card-title{font-size:1.1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
-    .form-grid{display:flex;flex-direction:column;gap:.75rem}
-    .input-group input, .input-group select{padding:.75rem;border:2px solid var(--border);border-radius:.75rem;font-size:1rem;width:100%}
-    .btn{padding:1rem;border:none;border-radius:.75rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%}
-    .btn-primary{background:var(--accent);color:#fff}
-    
-    /* Saldo */
-    .total-box{background:var(--primary);color:#fff;padding:1rem;border-radius:.75rem;text-align:center;margin-bottom:1rem}
-    .total-box .value{font-size:2rem;font-weight:800}
-    .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+    body{font-family:sans-serif;background:var(--bg);min-height:100vh;padding:1rem;color:#1e293b}
+    .app{max-width:450px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
+    .card{background:var(--c);border-radius:1rem;padding:1.25rem;box-shadow:0 10px 15px rgba(0,0,0,0.1)}
+    .btn{padding:1rem;border:none;border-radius:.75rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%;color:#fff}
+    .btn-save{background:var(--a);margin-top:10px}
+    .total-box{background:var(--p);color:#fff;padding:1rem;border-radius:.75rem;text-align:center;margin-bottom:1rem}
+    .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
     .balance-item{padding:1rem;border-radius:.75rem;text-align:center}
-    .balance-item.sara{background:#fdf2f8}.balance-item.rui{background:#eff6ff}
+    .sara{background:#fdf2f8}.rui{background:#eff6ff}
+    .expense-item{display:flex;justify-content:space-between;padding:.75rem;background:#f8fafc;border-radius:.75rem;margin-bottom:.5rem;border:1px solid #e2e8f0}
     
-    /* Botão de Arquivo com Novas Cores */
-    .archive-section{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);text-align:center}
-    #mainArchiveBtn{ 
-      background: #1e293b; /* COR INICIAL: PRETO/AZUL ESCURO */
-      color: white;
-      transition: all 0.3s ease;
+    /* BOTÃO DE ARQUIVO */
+    #mainArchiveBtn {
+      background: #000000 !important; /* COR INICIAL: PRETO */
+      color: white !important;
+      display: block;
+      margin-top: 15px;
     }
-    #mainArchiveBtn.waiting{ background: var(--warning); color: #fff; } /* AMARELO */
-    #mainArchiveBtn.ready{ background: var(--accent); color: #fff; }   /* VERDE */
-
-    .expense-item{display:flex;justify-content:space-between;padding:.75rem;background:#f8fafc;border-radius:.75rem;margin-bottom:.5rem}
-    .tabs{display:flex;gap:.4rem;margin-bottom:1rem;overflow-x:auto}
-    .tab-btn{padding:.5rem 1rem;border:none;border-radius:2rem;background:#f1f5f9;cursor:pointer;font-size:.8rem}
-    .tab-btn.active{background:var(--primary);color:#fff}
-    .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
-    .report-card{background:#f1f5f9;padding:.75rem;border-radius:.75rem;text-align:center}
+    #mainArchiveBtn.waiting { background: var(--w) !important; } /* AMARELO */
+    #mainArchiveBtn.done { background: var(--a) !important; }    /* VERDE */
+    
+    input, select { width:100%; padding:.75rem; margin:.25rem 0; border:2px solid #e2e8f0; border-radius:.75rem }
+    .tabs{display:flex;gap:.4rem;margin:1rem 0}.tab-btn{padding:.5rem;border:none;border-radius:1rem;flex:1;cursor:pointer}
+    .tab-btn.active{background:var(--p);color:#fff}
+    .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;text-align:center}
+    .report-card{background:#f1f5f9;padding:.75rem;border-radius:.75rem}
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="header" style="text-align:center;color:#fff;padding:1rem"><h1>💰 Sara & Rui</h1></div>
-    
     <div class="card">
-      <div class="card-title">➕ Nova Despesa</div>
-      <form id="expenseForm" class="form-grid">
-        <div class="input-group"><select id="payer" required><option value="" disabled selected>Quem pagou?</option><option value="Sara">👩 Sara</option><option value="Rui">👨 Rui</option></select></div>
-        <div class="input-group"><input id="amount" type="number" step="0.01" placeholder="Quanto? (€)" required></div>
-        <div class="input-group"><input id="description" type="text" placeholder="O quê?" required></div>
-        <button type="submit" class="btn btn-primary">✓ Guardar</button>
+      <h3>➕ Nova Despesa</h3>
+      <form id="expenseForm">
+        <select id="payer" required><option value="">Quem?</option><option value="Sara">👩 Sara</option><option value="Rui">👨 Rui</option></select>
+        <input id="amount" type="number" step="0.01" placeholder="Quanto (€)" required>
+        <input id="description" type="text" placeholder="O quê?" required>
+        <button type="submit" class="btn btn-save">Guardar</button>
       </form>
     </div>
 
     <div class="card">
-      <div class="card-title">📊 Saldo</div>
-      <div class="total-box"><div class="value"><span id="totalSum">0.00</span>€</div></div>
-      <div id="settlements" style="text-align:center; font-weight:bold; margin-bottom:1rem; padding:0.5rem; border-radius:0.5rem"></div>
+      <h3>📊 Saldo</h3>
+      <div class="total-box"><h1 id="totalSum">0.00</h1></div>
+      <div id="settlements" style="text-align:center;margin-bottom:1rem;padding:.5rem;border-radius:.5rem;font-weight:bold"></div>
       <div class="balance-grid">
         <div class="balance-item sara">👩 Sara: <span id="balanceSara">0.00</span>€</div>
         <div class="balance-item rui">👨 Rui: <span id="balanceRui">0.00</span>€</div>
@@ -71,26 +60,24 @@
     </div>
 
     <div class="card">
-      <div class="card-title">🧾 Despesas Atuais</div>
+      <h3>🧾 Lista</h3>
       <div id="list"></div>
-      <div class="archive-section">
-        <button id="mainArchiveBtn" class="btn">📁 Arquivar Contas</button>
-        <p id="archive-info" style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">Pronto para arquivar</p>
-      </div>
+      <button id="mainArchiveBtn" class="btn">📁 Arquivar Contas</button>
+      <p id="archive-info" style="font-size:0.7rem;text-align:center;margin-top:5px;color:#64748b"></p>
     </div>
 
     <div class="card">
-      <div class="card-title">📈 Histórico</div>
+      <h3>📈 Histórico</h3>
       <div class="tabs">
-        <button class="tab-btn active" data-days="7">7 dias</button>
-        <button class="tab-btn" data-days="30">1 mês</button>
+        <button class="tab-btn active" data-days="7">7d</button>
+        <button class="tab-btn" data-days="30">30d</button>
         <button class="tab-btn" data-days="0">Tudo</button>
       </div>
       <div class="report-grid">
-        <div class="report-card">💰 <div id="report-total">0€</div><small>Total</small></div>
-        <div class="report-card">📅 <div id="report-avg">0€</div><small>Média/dia</small></div>
-        <div class="report-card">👩 <div id="report-sara">0€</div><small>Sara</small></div>
-        <div class="report-card">👨 <div id="report-rui">0€</div><small>Rui</small></div>
+        <div class="report-card"><small>Total</small><div id="report-total">0</div></div>
+        <div class="report-card"><small>Média</small><div id="report-avg">0</div></div>
+        <div class="report-card"><small>Sara</small><div id="report-sara">0</div></div>
+        <div class="report-card"><small>Rui</small><div id="report-rui">0</div></div>
       </div>
     </div>
   </div>
