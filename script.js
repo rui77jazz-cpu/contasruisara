@@ -7,15 +7,30 @@ var firebaseConfig = {
   appId: "1:760330070358:web:5d1f213133bfdbe902cef7"
 };
 
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 var db = firebase.firestore();
 var householdRef = db.collection("households").doc("sara_rui");
 
-// IDENTIFICAÇÃO DO APARELHO (Segurança)
-var deviceId = localStorage.getItem("myDeviceId") || "dev_" + Math.random().toString(36).substr(2, 9);
-localStorage.setItem("myDeviceId", deviceId);
+// GERADOR DE ID ÚNICO PARA O TELEMÓVEL
+if(!localStorage.getItem("myId")) {
+    localStorage.setItem("myId", "dev_" + Math.random().toString(36).substr(2, 9));
+}
+var myId = localStorage.getItem("myId");
 
-// 1. SINCRONIZAÇÃO DE VOTOS E ARQUIVO
+// --- 1. HISTÓRICO (ABRIR/FECHAR) ---
+document.getElementById("btnToggleHist").onclick = function() {
+    var sec = document.getElementById("hist-section");
+    if(sec.style.display === "block") {
+        sec.style.display = "none";
+        this.textContent = "📜 Abrir Histórico";
+    } else {
+        sec.style.display = "block";
+        this.textContent = "❌ Fechar Histórico";
+        filtrarHist(30); // Carrega logo os últimos 30 dias
+    }
+};
+
+// --- 2. VOTAÇÃO E BLOQUEIO DE APARELHO ---
 householdRef.onSnapshot(function(doc) {
     var data = doc.data() || {};
     var v = data.archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
@@ -23,40 +38,38 @@ householdRef.onSnapshot(function(doc) {
     var bS = document.getElementById("archiveSara");
     var bR = document.getElementById("archiveRui");
 
-    // Cores: Cinza se não votou, Verde se votou
     bS.style.background = v.sara ? "#d1fae5" : "#f1f5f9";
     bS.style.color = v.sara ? "#065f46" : "#64748b";
     bR.style.background = v.rui ? "#d1fae5" : "#f1f5f9";
     bR.style.color = v.rui ? "#065f46" : "#64748b";
 
-    if(v.sara && v.rui) { 
-        setTimeout(archiveData, 1000); 
-    }
+    if(v.sara && v.rui) { setTimeout(archiveData, 1000); }
 });
 
-async function processVote(person) {
+async function votar(pessoa) {
     var doc = await householdRef.get();
     var data = doc.data() || {};
     var v = data.archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
-    var field = person.toLowerCase();
-    var other = (field === "sara") ? "rui" : "sara";
+    
+    var campo = pessoa.toLowerCase();
+    var outro = (campo === "sara") ? "rui" : "sara";
 
-    // BLOQUEIO: Não deixa votar pelos dois no mesmo telemóvel
-    if (v[other + "Dev"] === deviceId && !v[field]) {
-        alert("Já foi feito um voto neste aparelho. O " + other + " tem de votar no telemóvel dele!");
+    // BLOQUEIO REAL: Verifica se este telemóvel já votou como a outra pessoa
+    if (v[outro + "Dev"] === myId && !v[campo]) {
+        alert("Atenção! Este telemóvel já registou o voto de " + outro + ". O outro voto tem de ser feito noutro aparelho!");
         return;
     }
 
-    var update = {};
-    update["archiveVotes." + field] = !v[field];
-    update["archiveVotes." + field + "Dev"] = deviceId;
-    await householdRef.update(update);
+    var up = {};
+    up["archiveVotes." + campo] = !v[campo];
+    up["archiveVotes." + campo + "Dev"] = v[campo] ? "" : myId;
+    await householdRef.update(up);
 }
 
-document.getElementById("archiveSara").onclick = () => processVote("Sara");
-document.getElementById("archiveRui").onclick = () => processVote("Rui");
+document.getElementById("archiveSara").onclick = () => votar("Sara");
+document.getElementById("archiveRui").onclick = () => votar("Rui");
 
-// 2. LISTA ATUAL E CÁLCULOS (45 vs 58 corrigido)
+// --- 3. LISTA E CÁLCULOS ---
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(snap) {
     var list = document.getElementById("list");
     list.innerHTML = "";
@@ -82,39 +95,31 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(
     }
 });
 
-// 3. GUARDAR DESPESA
+// --- 4. FUNÇÕES DE SUPORTE ---
 document.getElementById("expenseForm").onsubmit = function(e) {
     e.preventDefault();
-    var val = parseFloat(document.getElementById("amount").value);
     householdRef.collection("expenses").add({
         payer: document.getElementById("payer").value,
-        amount: val,
+        amount: parseFloat(document.getElementById("amount").value),
         description: document.getElementById("description").value,
         date: new Date().toISOString().split('T')[0]
     }).then(() => e.target.reset());
 };
 
-// 4. HISTÓRICO E ARQUIVO
-function toggleHistSection() {
-    var sec = document.getElementById("hist-section");
-    sec.style.display = sec.style.display === "none" ? "block" : "none";
-}
-
 async function archiveData() {
     var snap = await householdRef.collection("expenses").get();
-    if(snap.empty) return resetAllVotes();
-
+    if(snap.empty) return resetVotes();
     var batch = db.batch();
     snap.docs.forEach(d => {
         batch.set(householdRef.collection("historico").doc(), d.data());
         batch.delete(d.ref);
     });
     await batch.commit();
-    await resetAllVotes();
-    alert("Arquivado com sucesso!");
+    await resetVotes();
+    alert("Arquivado!");
 }
 
-function resetAllVotes() {
+function resetVotes() {
     return householdRef.update({ "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" } });
 }
 
@@ -122,20 +127,22 @@ async function filtrarHist(dias) {
     var limit = new Date();
     limit.setDate(limit.getDate() - dias);
     var iso = limit.toISOString().split('T')[0];
-
     var snap = await householdRef.collection("historico").where("date", ">=", iso).get();
     var sum = 0, html = "";
     snap.forEach(d => {
         var e = d.data(); sum += e.amount;
-        html += `<div>${e.date} | ${e.payer}: ${e.amount.toFixed(2)}€</div>`;
+        html += `<div style="padding:5px 0; border-bottom:1px solid #f8fafc">${e.date} | ${e.payer}: ${e.amount.toFixed(2)}€</div>`;
     });
     document.getElementById("histTotal").textContent = sum.toFixed(2);
-    document.getElementById("histList").innerHTML = html;
+    document.getElementById("histList").innerHTML = html || "Sem registos.";
 }
 
-// 5. LIMPEZA TOTAL E DOCX
+document.getElementById("f7").onclick = () => filtrarHist(7);
+document.getElementById("f15").onclick = () => filtrarHist(15);
+document.getElementById("f30").onclick = () => filtrarHist(30);
+
 document.getElementById("clearBtn").onclick = async function() {
-    if(!confirm("Gerar Word e LIMPAR TUDO permanentemente?")) return;
+    if(!confirm("Gerar Word e LIMPAR TUDO?")) return;
     const cur = await householdRef.collection("expenses").get();
     const his = await householdRef.collection("historico").get();
     let data = [];
@@ -143,12 +150,12 @@ document.getElementById("clearBtn").onclick = async function() {
 
     const { Document, Packer, Paragraph } = docx;
     const doc = new Document({ sections: [{ children: [
-        new Paragraph({ text: "RELATÓRIO DE CONTAS - SARA & RUI", heading: "Heading1" }),
-        ...data.map(e => new Paragraph({ text: `${e.date} - ${e.payer}: ${e.description} (${e.amount}€)` }))
+        new Paragraph({ text: "RELATÓRIO FINAL", heading: "Heading1" }),
+        ...data.map(e => new Paragraph({ text: `${e.date} - ${e.payer}: ${e.amount}€` }))
     ]}]});
 
     Packer.toBlob(doc).then(blob => {
-        saveAs(blob, "Contas_SaraRui.docx");
+        saveAs(blob, "Contas.docx");
         let b = db.batch();
         cur.docs.forEach(d => b.delete(d.ref));
         his.docs.forEach(d => b.delete(d.ref));
