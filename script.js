@@ -11,80 +11,69 @@ if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 var db = firebase.firestore();
 var householdRef = db.collection("households").doc("sara_rui");
 
-// GERADOR DE ID ÚNICO PARA O TELEMÓVEL
-if(!localStorage.getItem("myId")) {
-    localStorage.setItem("myId", "dev_" + Math.random().toString(36).substr(2, 9));
-}
-var myId = localStorage.getItem("myId");
+// ID DO APARELHO PARA BLOQUEIO
+var myDeviceId = localStorage.getItem("myId") || "dev_" + Math.random().toString(36).substr(2, 9);
+localStorage.setItem("myId", myDeviceId);
 
 // --- 1. HISTÓRICO (ABRIR/FECHAR) ---
-document.getElementById("btnToggleHist").onclick = function() {
+document.getElementById("btnToggleHist").onclick = function(e) {
+    e.preventDefault();
     var sec = document.getElementById("hist-section");
-    if(sec.style.display === "block") {
-        sec.style.display = "none";
-        this.textContent = "📜 Abrir Histórico";
+    if (sec.style.display === "none" || sec.style.display === "") {
+        sec.style.setProperty("display", "block", "important");
+        this.textContent = "❌ Fechar";
+        filtrarHist(30);
     } else {
-        sec.style.display = "block";
-        this.textContent = "❌ Fechar Histórico";
-        filtrarHist(30); // Carrega logo os últimos 30 dias
+        sec.style.setProperty("display", "none", "important");
+        this.textContent = "📜 Histórico";
     }
 };
 
-// --- 2. VOTAÇÃO E BLOQUEIO DE APARELHO ---
+// --- 2. VOTAÇÃO ---
 householdRef.onSnapshot(function(doc) {
     var data = doc.data() || {};
     var v = data.archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
-    
     var bS = document.getElementById("archiveSara");
     var bR = document.getElementById("archiveRui");
-
     bS.style.background = v.sara ? "#d1fae5" : "#f1f5f9";
     bS.style.color = v.sara ? "#065f46" : "#64748b";
     bR.style.background = v.rui ? "#d1fae5" : "#f1f5f9";
     bR.style.color = v.rui ? "#065f46" : "#64748b";
-
     if(v.sara && v.rui) { setTimeout(archiveData, 1000); }
 });
 
-async function votar(pessoa) {
+async function processVote(pessoa) {
     var doc = await householdRef.get();
     var data = doc.data() || {};
     var v = data.archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
-    
     var campo = pessoa.toLowerCase();
     var outro = (campo === "sara") ? "rui" : "sara";
-
-    // BLOQUEIO REAL: Verifica se este telemóvel já votou como a outra pessoa
-    if (v[outro + "Dev"] === myId && !v[campo]) {
-        alert("Atenção! Este telemóvel já registou o voto de " + outro + ". O outro voto tem de ser feito noutro aparelho!");
+    if (v[outro + "Dev"] === myDeviceId && !v[campo]) {
+        alert("Erro: O outro já votou neste aparelho!");
         return;
     }
-
     var up = {};
     up["archiveVotes." + campo] = !v[campo];
-    up["archiveVotes." + campo + "Dev"] = v[campo] ? "" : myId;
+    up["archiveVotes." + campo + "Dev"] = v[campo] ? "" : myDeviceId;
     await householdRef.update(up);
 }
 
-document.getElementById("archiveSara").onclick = () => votar("Sara");
-document.getElementById("archiveRui").onclick = () => votar("Rui");
+document.getElementById("archiveSara").onclick = () => processVote("Sara");
+document.getElementById("archiveRui").onclick = () => processVote("Rui");
 
 // --- 3. LISTA E CÁLCULOS ---
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(snap) {
     var list = document.getElementById("list");
     list.innerHTML = "";
     var ts = 0, tr = 0;
-
     snap.forEach(function(doc) {
         var e = doc.data();
         if(e.payer === "Sara") ts += e.amount; else tr += e.amount;
         list.innerHTML += `<div class="expense-item"><span>${e.payer}: ${e.description}</span><b>${e.amount.toFixed(2)}€</b></div>`;
     });
-
     document.getElementById("totalSum").textContent = (ts + tr).toFixed(2);
     document.getElementById("balanceSara").textContent = ts.toFixed(2) + "€";
     document.getElementById("balanceRui").textContent = tr.toFixed(2) + "€";
-
     var s = document.getElementById("settlements");
     var diff = (ts - tr) / 2;
     if((ts+tr) === 0 || Math.abs(diff) < 0.01) {
@@ -95,7 +84,7 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(function(
     }
 });
 
-// --- 4. FUNÇÕES DE SUPORTE ---
+// --- 4. GUARDAR E ARQUIVAR ---
 document.getElementById("expenseForm").onsubmit = function(e) {
     e.preventDefault();
     householdRef.collection("expenses").add({
@@ -116,7 +105,6 @@ async function archiveData() {
     });
     await batch.commit();
     await resetVotes();
-    alert("Arquivado!");
 }
 
 function resetVotes() {
@@ -131,18 +119,15 @@ async function filtrarHist(dias) {
     var sum = 0, html = "";
     snap.forEach(d => {
         var e = d.data(); sum += e.amount;
-        html += `<div style="padding:5px 0; border-bottom:1px solid #f8fafc">${e.date} | ${e.payer}: ${e.amount.toFixed(2)}€</div>`;
+        html += `<div style="padding:5px 0; border-bottom:1px solid #ddd">${e.date} | ${e.payer}: ${e.amount.toFixed(2)}€</div>`;
     });
     document.getElementById("histTotal").textContent = sum.toFixed(2);
     document.getElementById("histList").innerHTML = html || "Sem registos.";
 }
 
-document.getElementById("f7").onclick = () => filtrarHist(7);
-document.getElementById("f15").onclick = () => filtrarHist(15);
-document.getElementById("f30").onclick = () => filtrarHist(30);
-
+// --- 5. LIMPEZA TOTAL COM NOME ÚNICO PARA TELEMÓVEL ---
 document.getElementById("clearBtn").onclick = async function() {
-    if(!confirm("Gerar Word e LIMPAR TUDO?")) return;
+    if(!confirm("Gerar relatório e LIMPAR TUDO?")) return;
     const cur = await householdRef.collection("expenses").get();
     const his = await householdRef.collection("historico").get();
     let data = [];
@@ -150,15 +135,22 @@ document.getElementById("clearBtn").onclick = async function() {
 
     const { Document, Packer, Paragraph } = docx;
     const doc = new Document({ sections: [{ children: [
-        new Paragraph({ text: "RELATÓRIO FINAL", heading: "Heading1" }),
-        ...data.map(e => new Paragraph({ text: `${e.date} - ${e.payer}: ${e.amount}€` }))
+        new Paragraph({ text: "RELATÓRIO SARA & RUI", heading: "Heading1" }),
+        ...data.map(e => new Paragraph({ text: `${e.date} - ${e.payer}: ${e.description} (${e.amount.toFixed(2)}€)` }))
     ]}]});
 
     Packer.toBlob(doc).then(blob => {
-        saveAs(blob, "Contas.docx");
+        const agora = new Date();
+        const nomeFinal = `Contas_${agora.getDate()}_${agora.getMonth()+1}_${agora.getHours()}h${agora.getMinutes()}.docx`;
+        
+        saveAs(blob, nomeFinal);
+        
         let b = db.batch();
         cur.docs.forEach(d => b.delete(d.ref));
         his.docs.forEach(d => b.delete(d.ref));
-        b.commit().then(() => location.reload());
+        b.commit().then(() => {
+            alert("Relatório guardado como: " + nomeFinal);
+            location.reload();
+        });
     });
 };
