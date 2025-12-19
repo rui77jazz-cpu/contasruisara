@@ -1,133 +1,99 @@
-const firebaseConfig = {
-  apiKey: "AIzaSyCle9Kx3OVD7mnZfXubKyIGW6COYrGI304",
-  authDomain: "contassararui.firebaseapp.com",
-  projectId: "contassararui",
-  storageBucket: "contassararui.firebasestorage.app",
-  messagingSenderId: "760330070358",
-  appId: "1:760330070358:web:5d1f213133bfdbe902cef7"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// Identificador único para este aparelho (browser)
-if(!localStorage.getItem("device_id")) {
-    localStorage.setItem("device_id", "dev_" + Math.random().toString(36).substr(2, 9));
-}
-const deviceId = localStorage.getItem("device_id");
-
-function loadExpenses() {
-  db.collection("households").doc("sara_rui").collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
-    const list = document.getElementById("list"); list.innerHTML = "";
-    let s=0, r=0, t=0;
-    snap.forEach(doc => {
-      const e = doc.data(); t += e.amount;
-      if (e.payer === 'Sara') s += e.amount; else r += e.amount;
-      const div = document.createElement("div"); div.className = "expense-item";
-      div.innerHTML = `<div><strong>${e.payer=='Sara'?'👩':'👨'} ${e.description}</strong><br><small>${e.date}</small></div>
-                       <div>${e.amount.toFixed(2)}€ <button onclick="deleteExp('${doc.id}')" style="background:none;border:none;cursor:pointer">🗑️</button></div>`;
-      list.appendChild(div);
-    });
-    document.getElementById("totalSum").textContent = t.toFixed(2);
-    document.getElementById("balanceSara").textContent = s.toFixed(2);
-    document.getElementById("balanceRui").textContent = r.toFixed(2);
-    const sett = document.getElementById("settlements");
-    const diff = Math.abs(s - r) / 2;
-    if (diff < 0.01) { sett.className="settlement even"; sett.textContent="✅ Tudo certo!"; }
-    else { sett.className="settlement pay"; sett.innerHTML = s > r ? `👨 Rui deve <strong>${diff.toFixed(2)}€</strong> a 👩 Sara` : `👩 Sara deve <strong>${diff.toFixed(2)}€</strong> a 👨 Rui`; }
-  });
-}
-
-function updateArchiveUI() {
-  db.collection("households").doc("sara_rui").onSnapshot(doc => {
-    const data = doc.data() || {};
-    const votes = data.archiveVotes || [];
-    const btn = document.getElementById("mainArchiveBtn");
-    const info = document.getElementById("archive-info");
-    const alreadyVoted = votes.includes(deviceId);
-
-    if (votes.length === 0) {
-      btn.className = "btn"; btn.textContent = "📁 Arquivar Contas";
-      info.textContent = "Falta a aprovação dos dois";
-    } else if (votes.length === 1) {
-      btn.className = "btn waiting";
-      btn.textContent = alreadyVoted ? "⏳ Aguardando Sara/Rui..." : "⚠️ Falta 1 aprovação!";
-      info.textContent = alreadyVoted ? "Tu já aprovaste. Falta a outra pessoa." : "Uma pessoa já aprovou. Clica para arquivar.";
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>💰 Sara & Rui</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    :root{
+      --primary:#6366f1; --accent:#10b981; --warning:#f59e0b; --text:#1e293b; --muted:#64748b;
+      --bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%); --card:#fff; --border:#e2e8f0; --r:1rem;
     }
-  });
-}
-
-document.getElementById("mainArchiveBtn").onclick = function() {
-  const docRef = db.collection("households").doc("sara_rui");
-  
-  docRef.get().then(doc => {
-    let votes = (doc.data() && doc.data().archiveVotes) || [];
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);min-height:100vh;padding:1rem;color:var(--text)}
+    .app{max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:1rem}
+    .card{background:var(--card);border-radius:var(--r);padding:1.25rem;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1)}
+    .card-title{font-size:1.1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+    .form-grid{display:flex;flex-direction:column;gap:.75rem}
+    .input-group input, .input-group select{padding:.75rem;border:2px solid var(--border);border-radius:.75rem;font-size:1rem;width:100%}
+    .btn{padding:1rem;border:none;border-radius:.75rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%}
+    .btn-primary{background:var(--accent);color:#fff}
     
-    if (votes.includes(deviceId)) {
-      alert("Tu já aprovaste no teu telemóvel! Agora a outra pessoa tem de clicar no telemóvel dela.");
-      return;
+    /* Saldo */
+    .total-box{background:var(--primary);color:#fff;padding:1rem;border-radius:.75rem;text-align:center;margin-bottom:1rem}
+    .total-box .value{font-size:2rem;font-weight:800}
+    .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+    .balance-item{padding:1rem;border-radius:.75rem;text-align:center}
+    .balance-item.sara{background:#fdf2f8}.balance-item.rui{background:#eff6ff}
+    
+    /* Botão de Arquivo com Novas Cores */
+    .archive-section{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);text-align:center}
+    #mainArchiveBtn{ 
+      background: #1e293b; /* COR INICIAL: PRETO/AZUL ESCURO */
+      color: white;
+      transition: all 0.3s ease;
     }
+    #mainArchiveBtn.waiting{ background: var(--warning); color: #fff; } /* AMARELO */
+    #mainArchiveBtn.ready{ background: var(--accent); color: #fff; }   /* VERDE */
 
-    votes.push(deviceId);
+    .expense-item{display:flex;justify-content:space-between;padding:.75rem;background:#f8fafc;border-radius:.75rem;margin-bottom:.5rem}
+    .tabs{display:flex;gap:.4rem;margin-bottom:1rem;overflow-x:auto}
+    .tab-btn{padding:.5rem 1rem;border:none;border-radius:2rem;background:#f1f5f9;cursor:pointer;font-size:.8rem}
+    .tab-btn.active{background:var(--primary);color:#fff}
+    .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    .report-card{background:#f1f5f9;padding:.75rem;border-radius:.75rem;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header" style="text-align:center;color:#fff;padding:1rem"><h1>💰 Sara & Rui</h1></div>
     
-    docRef.update({ archiveVotes: votes }).then(() => {
-      if (votes.length >= 2) {
-        doArchive();
-      }
-    });
-  });
-};
+    <div class="card">
+      <div class="card-title">➕ Nova Despesa</div>
+      <form id="expenseForm" class="form-grid">
+        <div class="input-group"><select id="payer" required><option value="" disabled selected>Quem pagou?</option><option value="Sara">👩 Sara</option><option value="Rui">👨 Rui</option></select></div>
+        <div class="input-group"><input id="amount" type="number" step="0.01" placeholder="Quanto? (€)" required></div>
+        <div class="input-group"><input id="description" type="text" placeholder="O quê?" required></div>
+        <button type="submit" class="btn btn-primary">✓ Guardar</button>
+      </form>
+    </div>
 
-function doArchive() {
-  const status = document.getElementById("archive-info");
-  status.textContent = "🚀 A arquivar tudo...";
-  
-  db.collection("households").doc("sara_rui").collection("expenses").get().then(snap => {
-    if (snap.empty) { resetVotes(); return; }
-    let batch = db.batch();
-    snap.docs.forEach(doc => {
-      const hRef = db.collection("households").doc("sara_rui").collection("historico").doc();
-      batch.set(hRef, {...doc.data(), archivedAt: new Date().toISOString()});
-      batch.delete(doc.ref);
-    });
-    batch.commit().then(() => {
-      resetVotes();
-      alert("✅ Contas enviadas para o histórico!");
-    });
-  });
-}
+    <div class="card">
+      <div class="card-title">📊 Saldo</div>
+      <div class="total-box"><div class="value"><span id="totalSum">0.00</span>€</div></div>
+      <div id="settlements" style="text-align:center; font-weight:bold; margin-bottom:1rem; padding:0.5rem; border-radius:0.5rem"></div>
+      <div class="balance-grid">
+        <div class="balance-item sara">👩 Sara: <span id="balanceSara">0.00</span>€</div>
+        <div class="balance-item rui">👨 Rui: <span id="balanceRui">0.00</span>€</div>
+      </div>
+    </div>
 
-function resetVotes() {
-  db.collection("households").doc("sara_rui").update({ archiveVotes: [] });
-}
+    <div class="card">
+      <div class="card-title">🧾 Despesas Atuais</div>
+      <div id="list"></div>
+      <div class="archive-section">
+        <button id="mainArchiveBtn" class="btn">📁 Arquivar Contas</button>
+        <p id="archive-info" style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">Pronto para arquivar</p>
+      </div>
+    </div>
 
-function loadReport(days) {
-  db.collection("households").doc("sara_rui").collection("historico").get().then(snap => {
-    let t=0, s=0, r=0, c=0; const limit = days > 0 ? new Date(Date.now() - days*86400000).toISOString().slice(0,10) : "0";
-    snap.forEach(doc => { const d = doc.data(); if(d.date >= limit){ t+=d.amount; if(d.payer=='Sara') s+=d.amount; else r+=d.amount; c++; }});
-    document.getElementById("report-total").textContent = t.toFixed(0)+"€";
-    document.getElementById("report-sara").textContent = s.toFixed(0)+"€";
-    document.getElementById("report-rui").textContent = r.toFixed(0)+"€";
-    document.getElementById("report-avg").textContent = c > 0 ? (t/(days||30)).toFixed(1)+"€" : "0€";
-  });
-}
-
-function deleteExp(id) { if(confirm("Apagar?")) db.collection("households").doc("sara_rui").collection("expenses").doc(id).delete(); }
-
-document.addEventListener("DOMContentLoaded", () => {
-  loadExpenses(); loadReport(7); updateArchiveUI();
-  document.getElementById("expenseForm").onsubmit = (e) => {
-    e.preventDefault();
-    db.collection("households").doc("sara_rui").collection("expenses").add({
-      payer: document.getElementById("payer").value,
-      amount: parseFloat(document.getElementById("amount").value),
-      description: document.getElementById("description").value,
-      date: new Date().toISOString().slice(0, 10)
-    }).then(() => e.target.reset());
-  };
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    b.onclick = () => {
-      document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
-      b.classList.add('active'); loadReport(parseInt(b.dataset.days));
-    };
-  });
-});
+    <div class="card">
+      <div class="card-title">📈 Histórico</div>
+      <div class="tabs">
+        <button class="tab-btn active" data-days="7">7 dias</button>
+        <button class="tab-btn" data-days="30">1 mês</button>
+        <button class="tab-btn" data-days="0">Tudo</button>
+      </div>
+      <div class="report-grid">
+        <div class="report-card">💰 <div id="report-total">0€</div><small>Total</small></div>
+        <div class="report-card">📅 <div id="report-avg">0€</div><small>Média/dia</small></div>
+        <div class="report-card">👩 <div id="report-sara">0€</div><small>Sara</small></div>
+        <div class="report-card">👨 <div id="report-rui">0€</div><small>Rui</small></div>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
