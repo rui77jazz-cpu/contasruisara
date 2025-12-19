@@ -7,62 +7,122 @@ var firebaseConfig = {
   appId: "1:760330070358:web:5d1f213133bfdbe902cef7"
 };
 
-if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
 var householdRef = db.collection("households").doc("sara_rui");
 var myId = localStorage.getItem("myId") || "dev_" + Math.random().toString(36).substr(2, 9);
 localStorage.setItem("myId", myId);
 
-// 1. GESTÃO DO HISTÓRICO
-document.getElementById("btnToggleHist").onclick = () => {
-    var s = document.getElementById("hist-section");
-    s.style.display = (s.style.display === "block") ? "none" : "block";
-    if(s.style.display === "block") consultarTotal(30);
-};
+let dadosAtuais = { ts: 0, tr: 0, textoDivida: "", lista: [] };
 
-// 2. APAGAR TUDO (COM DUPLO AVISO)
-async function apagarTudoPermanente() {
-    if(confirm("AVISO 1: Deseja apagar TODO o histórico permanente?")) {
-        if(confirm("AVISO FINAL: Tem a certeza absoluta? Não poderá recuperar estes dados.")) {
-            var snap = await householdRef.collection("arquivo_permanente").get();
-            let b = db.batch();
-            snap.docs.forEach(d => b.delete(d.ref));
-            await b.commit();
-            alert("Histórico apagado com sucesso.");
-            location.reload();
-        }
-    }
-}
-
-// 3. LISTA ATUAL COM DATA E DESIGN
+// 1. MONITORIZAÇÃO DA LISTA ATUAL
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
-    var list = document.getElementById("list"), ts = 0, tr = 0;
+    var list = document.getElementById("list");
     list.innerHTML = "";
+    dadosAtuais.ts = 0; dadosAtuais.tr = 0; dadosAtuais.lista = [];
+
     snap.forEach(doc => {
         var e = doc.data();
-        if(e.payer === "Sara") ts += e.amount; else tr += e.amount;
+        dadosAtuais.lista.push(e);
+        if(e.payer === "Sara") dadosAtuais.ts += e.amount; else dadosAtuais.tr += e.amount;
         list.innerHTML += `
             <div class="expense-item">
                 <div class="exp-info">
                     <span class="exp-date">${e.date.split('-').reverse().join('/')}</span>
                     <span class="exp-desc"><b>${e.payer}</b>: ${e.description}</span>
                 </div>
-                <span class="exp-amt">${e.amount.toFixed(2)}€</span>
+                <span style="font-weight:bold">${e.amount.toFixed(2)}€</span>
             </div>`;
     });
-    document.getElementById("totalSum").textContent = (ts + tr).toFixed(2);
-    document.getElementById("balanceSara").textContent = ts.toFixed(2) + "€";
-    document.getElementById("balanceRui").textContent = tr.toFixed(2) + "€";
-    var s = document.getElementById("settlements"), diff = (ts - tr) / 2;
-    if((ts+tr) === 0 || Math.abs(diff) < 0.01) {
-        s.style.background = "#d1fae5"; s.innerHTML = "✅ Tudo certo!";
+
+    document.getElementById("totalSum").textContent = (dadosAtuais.ts + dadosAtuais.tr).toFixed(2);
+    document.getElementById("balanceSara").textContent = dadosAtuais.ts.toFixed(2) + "€";
+    document.getElementById("balanceRui").textContent = dadosAtuais.tr.toFixed(2) + "€";
+
+    var s = document.getElementById("settlements"), diff = (dadosAtuais.ts - dadosAtuais.tr) / 2;
+    if((dadosAtuais.ts + dadosAtuais.tr) === 0) {
+        s.style.background = "#f1f5f9"; s.innerHTML = "Sem despesas ativas.";
+        dadosAtuais.textoDivida = "Tudo certo (0.00€)";
+    } else if (Math.abs(diff) < 0.01) {
+        s.style.background = "#d1fae5"; s.innerHTML = "✅ Contas Certas!";
+        dadosAtuais.textoDivida = "Contas equilibradas.";
     } else {
         s.style.background = "#fee2e2";
-        s.innerHTML = diff > 0 ? `👨 Rui deve <b>${diff.toFixed(2)}€</b>` : `👩 Sara deve <b>${Math.abs(diff).toFixed(2)}€</b>`;
+        let texto = diff > 0 ? `👨 Rui deve ${diff.toFixed(2)}€ a 👩 Sara` : `👩 Sara deve ${Math.abs(diff).toFixed(2)}€ a 👨 Rui`;
+        s.innerHTML = `<b>${texto}</b>`;
+        dadosAtuais.textoDivida = texto;
     }
 });
 
-// 4. GUARDAR
+// 2. LÓGICA DE APROVAÇÃO E FECHO AUTOMÁTICO
+householdRef.onSnapshot(async doc => {
+    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
+    var bS = document.getElementById("archiveSara"), bR = document.getElementById("archiveRui");
+
+    bS.style.background = v.sara ? "#10b981" : "#f1f5f9";
+    bS.style.color = v.sara ? "#fff" : "#64748b";
+    bR.style.background = v.rui ? "#10b981" : "#f1f5f9";
+    bR.style.color = v.rui ? "#fff" : "#64748b";
+
+    // SE OS DOIS APROVAREM: GERA RELATÓRIO E LIMPA TUDO
+    if(v.sara && v.rui) {
+        if(dadosAtuais.lista.length > 0) {
+            await gerarRelatorioCompleto();
+            await limparTudoAposFecho();
+            alert("Contas Fechadas! Relatório gerado e lista limpa.");
+        } else {
+            // Se aprovarem sem despesas, apenas faz reset aos votos
+            await householdRef.update({ "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" } });
+        }
+    }
+});
+
+async function votar(p) {
+    var doc = await householdRef.get();
+    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
+    var c = p.toLowerCase(), o = (c === "sara") ? "rui" : "sara";
+    if (v[o+"Dev"] === myId && !v[c]) { alert("Este telemóvel já votou por outra pessoa!"); return; }
+    var up = {}; up["archiveVotes."+c] = !v[c]; up["archiveVotes."+c+"Dev"] = v[c] ? "" : myId;
+    await householdRef.update(up);
+}
+document.getElementById("archiveSara").onclick = () => votar("Sara");
+document.getElementById("archiveRui").onclick = () => votar("Rui");
+
+// 3. RELATÓRIO COMPLETO
+async function gerarRelatorioCompleto() {
+    const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
+    let lines = [
+        new Paragraph({ children: [new TextRun({ text: "RELATÓRIO DE FECHO DE CONTAS", bold: true, size: 32 })], alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: `Data do Fecho: ${new Date().toLocaleString()}` }),
+        new Paragraph({ text: "" }),
+        new Paragraph({ children: [new TextRun({ text: "RESUMO FINANCEIRO:", bold: true })] }),
+        new Paragraph({ text: `Total Gasto: ${(dadosAtuais.ts + dadosAtuais.tr).toFixed(2)}€` }),
+        new Paragraph({ text: `Total Sara: ${dadosAtuais.ts.toFixed(2)}€` }),
+        new Paragraph({ text: `Total Rui: ${dadosAtuais.tr.toFixed(2)}€` }),
+        new Paragraph({ children: [new TextRun({ text: `ACERTO DE CONTAS: ${dadosAtuais.textoDivida}`, bold: true, color: "FF0000" })] }),
+        new Paragraph({ text: "" }),
+        new Paragraph({ children: [new TextRun({ text: "DETALHE DAS DESPESAS:", bold: true })] })
+    ];
+
+    dadosAtuais.lista.forEach(e => {
+        lines.push(new Paragraph({ text: `${e.date} | ${e.payer}: ${e.description} -> ${e.amount.toFixed(2)}€` }));
+    });
+
+    const doc = new Document({ sections: [{ children: lines }] });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `Fecho_Contas_${new Date().toISOString().split('T')[0]}.docx`);
+}
+
+async function limparTudoAposFecho() {
+    var snap = await householdRef.collection("expenses").get();
+    let b = db.batch();
+    snap.docs.forEach(d => b.delete(d.ref));
+    await b.commit();
+    // Reset dos votos
+    await householdRef.update({ "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" } });
+}
+
+// 4. RESTANTES FUNÇÕES (GUARDAR E HISTÓRICO)
 document.getElementById("expenseForm").onsubmit = async (e) => {
     e.preventDefault();
     var obj = {
@@ -76,68 +136,25 @@ document.getElementById("expenseForm").onsubmit = async (e) => {
     e.target.reset();
 };
 
-// 5. FILTROS DE TEMPO
+document.getElementById("btnToggleHist").onclick = () => {
+    var s = document.getElementById("hist-section");
+    s.style.display = s.style.display === "block" ? "none" : "block";
+    if(s.style.display === "block") consultarTotal(30);
+};
+
 async function consultarTotal(dias) {
     var limite = new Date();
     limite.setHours(0,0,0,0);
     if(dias > 0) limite.setDate(limite.getDate() - dias);
-    var iso = limite.toISOString().split('T')[0];
-    
-    var snap = await householdRef.collection("arquivo_permanente").where("date", ">=", iso).get();
-    var total = 0;
-    snap.forEach(d => total += d.data().amount);
-    document.getElementById("histTotal").textContent = total.toFixed(2);
+    var snap = await householdRef.collection("arquivo_permanente").where("date", ">=", limite.toISOString().split('T')[0]).get();
+    var t = 0; snap.forEach(d => t += d.data().amount);
+    document.getElementById("histTotal").textContent = t.toFixed(2);
 }
 
-// 6. APROVAÇÃO BLOQUEADA
-var podeLimpar = false;
-householdRef.onSnapshot(doc => {
-    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
-    document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#f1f5f9";
-    document.getElementById("archiveSara").style.color = v.sara ? "#fff" : "#64748b";
-    document.getElementById("archiveRui").style.background = v.rui ? "#10b981" : "#f1f5f9";
-    document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#64748b";
-    
-    podeLimpar = (v.sara && v.rui);
-    document.getElementById("msgAviso").style.display = podeLimpar ? "none" : "block";
-});
-
-async function votar(p) {
-    var doc = await householdRef.get();
-    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
-    var c = p.toLowerCase(), o = (c === "sara") ? "rui" : "sara";
-    if (v[o+"Dev"] === myId && !v[c]) { alert("Este aparelho já votou por outra pessoa!"); return; }
-    var up = {}; up["archiveVotes."+c] = !v[c]; up["archiveVotes."+c+"Dev"] = v[c] ? "" : myId;
-    await householdRef.update(up);
+async function apagarTudoPermanente() {
+    if(confirm("Apagar histórico eterno?")) {
+        var snap = await householdRef.collection("arquivo_permanente").get();
+        let b = db.batch(); snap.docs.forEach(d => b.delete(d.ref));
+        await b.commit(); alert("Arquivo limpo.");
+    }
 }
-document.getElementById("archiveSara").onclick = () => votar("Sara");
-document.getElementById("archiveRui").onclick = () => votar("Rui");
-
-// 7. DOWNLOAD E LIMPEZA (SEPARADOS)
-document.getElementById("btnDownload").onclick = async () => {
-    const snap = await householdRef.collection("expenses").get();
-    if(snap.empty) return alert("Nada para exportar.");
-    
-    const { Document, Packer, Paragraph, TextRun } = docx;
-    let lines = [];
-    snap.forEach(d => {
-        let e = d.data();
-        lines.push(new Paragraph({ children: [new TextRun(`${e.date} | ${e.payer}: ${e.description} - ${e.amount}€`)] }));
-    });
-
-    const doc = new Document({ sections: [{ children: lines }] });
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `Relatorio_Contas_${new Date().getTime()}.docx`);
-};
-
-document.getElementById("btnClearList").onclick = async () => {
-    if(!podeLimpar) return alert("Erro: Sara e Rui precisam de aprovar primeiro nos botões verdes!");
-    if(!confirm("Tem a certeza que quer apagar a lista atual? O histórico permanente será mantido.")) return;
-    
-    var snap = await householdRef.collection("expenses").get();
-    let b = db.batch();
-    snap.docs.forEach(d => b.delete(d.ref));
-    await b.commit();
-    await householdRef.update({ "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" } });
-    alert("Lista limpa!");
-};
