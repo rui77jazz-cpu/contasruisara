@@ -46,7 +46,7 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     }
 });
 
-// 2. LÓGICA DE ARQUIVAR (SALDAR)
+// 2. LÓGICA DE ARQUIVAR (SALDAR) - SEM DOWNLOAD AUTOMÁTICO
 householdRef.onSnapshot(async doc => {
     var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
     document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#f1f5f9";
@@ -55,7 +55,7 @@ householdRef.onSnapshot(async doc => {
     document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#64748b";
 
     if(v.sara && v.rui && dadosAtuais.lista.length > 0) {
-        await gerarRelatorio(dadosAtuais.lista, "FECHO_DE_CONTAS_SALDADAS", dadosAtuais.ts, dadosAtuais.tr, dadosAtuais.divida);
+        // APENAS ARQUIVA, NÃO FAZ DOWNLOAD
         var snap = await householdRef.collection("expenses").get();
         let b = db.batch();
         snap.docs.forEach(d => b.delete(d.ref));
