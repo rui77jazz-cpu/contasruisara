@@ -13,30 +13,33 @@
     :root{--primary:#6366f1;--accent:#10b981;--danger:#ef4444;--bg:#f8fafc}
     *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
     body{background:var(--bg);padding:1rem;color:#1e293b}
-    .card{background:#fff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem}
     
-    /* Box do Total - azul suave */
+    /* Caixa 1 - azul muito suave */
+    .card-1{background:#eff6ff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem;border:1px solid #dbeafe}
+    
+    /* Caixa 2 - verde muito suave */
+    .card-2{background:#f0fdf4;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem;border:1px solid #dcfce7}
+    
+    /* Caixa 3 - rosa muito suave */
+    .card-3{background:#fdf2f8;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem;border:1px solid #fce7f3}
+    
     .total-box{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e3a8a;padding:1.2rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2rem;font-weight:bold;border:2px solid #93c5fd}
     
-    /* Balance Sara/Rui - rosa suave */
     .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
     .balance-item{padding:0.8rem;border-radius:0.8rem;text-align:center;background:#fce7f3;border:2px solid #fbcfe8;color:#831843}
     
-    input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:16px}
+    input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:16px;background:#fff}
     .btn-save{background:var(--accent);color:#fff;border:none;padding:1rem;border-radius:8px;font-weight:bold;width:100%;cursor:pointer}
     .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9}
     .exp-info{display:flex;flex-direction:column}
     .exp-date{font-size:0.75rem;color:#6366f1;font-weight:bold}
     
-    /* Botões de arquivar - verde suave */
     .v-btn{padding:15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;width:100%;background:#d1fae5;color:#065f46;border:2px solid #a7f3d0}
     
-    /* Secção de histórico - amarelo/laranja suave */
     #hist-section{display:none;margin-top:1rem;padding:1rem;background:#fef3c7;border-radius:12px;border:2px solid #fde68a}
     
     .filter-select{width:100%;padding:10px;border-radius:8px;border:2px solid #a5b4fc;color:#4338ca;font-weight:bold;margin-bottom:10px;background:#fff}
     
-    /* Label total gasto - lilás suave */
     .total-gasto-label{font-size:1.1rem;font-weight:bold;text-align:center;padding:12px;background:#e9d5ff;border-radius:8px;margin-bottom:10px;color:#6b21a8;border:2px solid #d8b4fe}
     
     .btn-report-hist{background:#60a5fa;color:#fff;border:none;padding:12px;border-radius:8px;width:100%;font-weight:bold;cursor:pointer;margin-top:5px}
@@ -45,7 +48,7 @@
 </head>
 <body>
 
-  <div class="card">
+  <div class="card-1">
     <div class="total-box"><span id="totalSum">0.00</span>€</div>
     <div class="balance-grid">
       <div class="balance-item">👩 Sara<br><b id="balanceSara">0.00€</b></div>
@@ -54,7 +57,7 @@
     <div id="settlements" style="text-align:center;font-weight:bold;padding:10px;border-radius:8px"></div>
   </div>
 
-  <div class="card">
+  <div class="card-2">
     <h4 style="margin-bottom:1rem;color:#64748b">➕ Nova Despesa</h4>
     <form id="expenseForm">
       <select id="payer"><option value="Sara">Sara 👩</option><option value="Rui">Rui 👨</option></select>
@@ -64,7 +67,7 @@
     </form>
   </div>
 
-  <div class="card">
+  <div class="card-3">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <h4 style="color:#64748b">📋 Lista Atual (Aberto)</h4>
       <button id="btnToggleHist" style="background:none;border:none;color:#6366f1;font-weight:bold;cursor:pointer">Arquivo Permanente 📊</button>
