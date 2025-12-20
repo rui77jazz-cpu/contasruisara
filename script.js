@@ -1,101 +1,154 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>💰 Sara & Rui - Gestão</title>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+var firebaseConfig = {
+  apiKey: "AIzaSyCle9Kx3OVD7mnZfXubKyIGW6COYrGI304",
+  authDomain: "contassararui.firebaseapp.com",
+  projectId: "contassararui",
+  storageBucket: "contassararui.firebasestorage.app",
+  messagingSenderId: "760330070358",
+  appId: "1:760330070358:web:5d1f213133bfdbe902cef7"
+};
 
-  <style>
-    :root{--primary:#6366f1;--accent:#10b981;--danger:#ef4444;--bg:#f8fafc}
-    *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
-    body{background:var(--bg);padding:1rem;color:#1e293b}
-    .card{background:#fff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem}
-    
-    /* Box do Total - azul suave */
-    .total-box{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e3a8a;padding:1.2rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2rem;font-weight:bold;border:2px solid #93c5fd}
-    
-    /* Balance Sara/Rui - rosa suave */
-    .balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
-    .balance-item{padding:0.8rem;border-radius:0.8rem;text-align:center;background:#fce7f3;border:2px solid #fbcfe8;color:#831843}
-    
-    input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:16px}
-    .btn-save{background:var(--accent);color:#fff;border:none;padding:1rem;border-radius:8px;font-weight:bold;width:100%;cursor:pointer}
-    .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f1f5f9}
-    .exp-info{display:flex;flex-direction:column}
-    .exp-date{font-size:0.75rem;color:#6366f1;font-weight:bold}
-    
-    /* Botões de arquivar - verde suave */
-    .v-btn{padding:15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;width:100%;background:#d1fae5;color:#065f46;border:2px solid #a7f3d0}
-    
-    /* Secção de histórico - amarelo/laranja suave */
-    #hist-section{display:none;margin-top:1rem;padding:1rem;background:#fef3c7;border-radius:12px;border:2px solid #fde68a}
-    
-    .filter-select{width:100%;padding:10px;border-radius:8px;border:2px solid #a5b4fc;color:#4338ca;font-weight:bold;margin-bottom:10px;background:#fff}
-    
-    /* Label total gasto - lilás suave */
-    .total-gasto-label{font-size:1.1rem;font-weight:bold;text-align:center;padding:12px;background:#e9d5ff;border-radius:8px;margin-bottom:10px;color:#6b21a8;border:2px solid #d8b4fe}
-    
-    .btn-report-hist{background:#60a5fa;color:#fff;border:none;padding:12px;border-radius:8px;width:100%;font-weight:bold;cursor:pointer;margin-top:5px}
-    .btn-danger-link{background:none;border:none;color:var(--danger);font-size:0.7rem;text-decoration:underline;width:100%;margin-top:20px;cursor:pointer}
-  </style>
-</head>
-<body>
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+var householdRef = db.collection("households").doc("sara_rui");
+var myId = localStorage.getItem("myId") || "dev_" + Math.random().toString(36).substr(2, 9);
+localStorage.setItem("myId", myId);
 
-  <div class="card">
-    <div class="total-box"><span id="totalSum">0.00</span>€</div>
-    <div class="balance-grid">
-      <div class="balance-item">👩 Sara<br><b id="balanceSara">0.00€</b></div>
-      <div class="balance-item">👨 Rui<br><b id="balanceRui">0.00€</b></div>
-    </div>
-    <div id="settlements" style="text-align:center;font-weight:bold;padding:10px;border-radius:8px"></div>
-  </div>
+let dadosAtuais = { ts: 0, tr: 0, divida: "", lista: [] };
 
-  <div class="card">
-    <h4 style="margin-bottom:1rem;color:#64748b">➕ Nova Despesa</h4>
-    <form id="expenseForm">
-      <select id="payer"><option value="Sara">Sara 👩</option><option value="Rui">Rui 👨</option></select>
-      <input id="amount" type="number" step="0.01" placeholder="Valor €" required>
-      <input id="description" type="text" placeholder="Descrição" required>
-      <button type="submit" class="btn-save">✓ Guardar</button>
-    </form>
-  </div>
+// 1. ATUALIZAÇÃO DA LISTA NO ECRÃ
+householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
+    var list = document.getElementById("list");
+    list.innerHTML = "";
+    dadosAtuais.ts = 0; dadosAtuais.tr = 0; dadosAtuais.lista = [];
 
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <h4 style="color:#64748b">📋 Lista Atual (Aberto)</h4>
-      <button id="btnToggleHist" style="background:none;border:none;color:#6366f1;font-weight:bold;cursor:pointer">Arquivo Permanente 📊</button>
-    </div>
-    <div id="list"></div>
+    snap.forEach(doc => {
+        var e = doc.data();
+        dadosAtuais.lista.push(e);
+        if(e.payer === "Sara") dadosAtuais.ts += e.amount; else dadosAtuais.tr += e.amount;
+        list.innerHTML += `<div class="expense-item">
+            <div class="exp-info"><span class="exp-date">${e.date.split('-').reverse().join('/')}</span><span><b>${e.payer}</b>: ${e.description}</span></div>
+            <b>${e.amount.toFixed(2)}€</b></div>`;
+    });
+
+    document.getElementById("totalSum").textContent = (dadosAtuais.ts + dadosAtuais.tr).toFixed(2);
+    document.getElementById("balanceSara").textContent = dadosAtuais.ts.toFixed(2) + "€";
+    document.getElementById("balanceRui").textContent = dadosAtuais.tr.toFixed(2) + "€";
+
+    var s = document.getElementById("settlements"), diff = (dadosAtuais.ts - dadosAtuais.tr) / 2;
+    if(dadosAtuais.lista.length === 0) {
+        s.style.background = "#f1f5f9"; s.innerHTML = "Tudo saldado!";
+        dadosAtuais.divida = "Sem dívidas pendentes.";
+    } else {
+        s.style.background = "#fee2e2";
+        dadosAtuais.divida = diff > 0 ? `👨 Rui deve ${diff.toFixed(2)}€ a 👩 Sara` : `👩 Sara deve ${Math.abs(diff).toFixed(2)}€ a 👨 Rui`;
+        if(Math.abs(diff) < 0.01) { s.style.background="#d1fae5"; dadosAtuais.divida="Contas equilibradas."; }
+        s.innerHTML = `<b>${dadosAtuais.divida}</b>`;
+    }
+});
+
+// 2. LÓGICA DE ARQUIVAR (SALDAR) - SEM QUALQUER RELATÓRIO
+householdRef.onSnapshot(async doc => {
+    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
+    document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#dbeafe";
+    document.getElementById("archiveSara").style.color = v.sara ? "#fff" : "#1e40af";
+    document.getElementById("archiveRui").style.background = v.rui ? "#10b981" : "#dbeafe";
+    document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#1e40af";
+
+    if(v.sara && v.rui && dadosAtuais.lista.length > 0) {
+        // APENAS LIMPA A LISTA ATUAL, SEM GERAR RELATÓRIO
+        var snap = await householdRef.collection("expenses").get();
+        let b = db.batch();
+        snap.docs.forEach(d => b.delete(d.ref));
+        await b.commit();
+        await householdRef.update({ "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" } });
+    }
+});
+
+async function votar(p) {
+    var doc = await householdRef.get();
+    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
+    var c = p.toLowerCase(), o = (c === "sara") ? "rui" : "sara";
+    if (v[o+"Dev"] === myId && !v[c]) return alert("Erro: Outro utilizador já votou aqui.");
+    var up = {}; up["archiveVotes."+c] = !v[c]; up["archiveVotes."+c+"Dev"] = v[c] ? "" : myId;
+    await householdRef.update(up);
+}
+document.getElementById("archiveSara").onclick = () => votar("Sara");
+document.getElementById("archiveRui").onclick = () => votar("Rui");
+
+// 3. CONSULTA E RELATÓRIO DO HISTÓRICO
+async function consultarTotal(dias) {
+    let lim = new Date(); lim.setHours(0,0,0,0);
+    lim.setDate(lim.getDate() - parseInt(dias));
+    let iso = lim.toISOString().split('T')[0];
     
-    <div style="margin-top:1.5rem;padding-top:1rem;border-top:2px solid #6366f1">
-      <p style="text-align:center;font-size:0.8rem;font-weight:bold;color:#6366f1;margin-bottom:10px">✅ ARQUIVAR E SALDAR</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button id="archiveSara" class="v-btn">Sara 👩</button>
-        <button id="archiveRui" class="v-btn">Rui 👨</button>
-      </div>
-    </div>
+    let snap = await householdRef.collection("arquivo_permanente").where("date", ">=", iso).get();
+    let t = 0; snap.forEach(d => t += d.data().amount);
+    document.getElementById("histTotal").textContent = t.toFixed(2);
+}
 
-    <div id="hist-section">
-      <p style="font-size:0.8rem;font-weight:bold;margin-bottom:5px;color:#92400e">Relatório de Arquivados:</p>
-      <select class="filter-select" id="timeFilter" onchange="consultarTotal(this.value)">
-        <option value="1">Apenas Hoje</option>
-        <option value="7">Últimos 7 dias</option>
-        <option value="15">Últimos 15 dias</option>
-        <option value="30" selected>Últimos 30 dias</option>
-        <option value="90">Últimos 3 meses</option>
-        <option value="365">Último Ano</option>
-      </select>
-      <div class="total-gasto-label">Total Gasto: <span id="histTotal">0.00</span>€</div>
-      <button id="btnDownloadHist" class="btn-report-hist">📥 Gerar Report do Período</button>
-      
-      <button onclick="apagarTudoPermanente()" class="btn-danger-link">Limpar Base de Dados Eterna</button>
-    </div>
-  </div>
+document.getElementById("btnDownloadHist").onclick = async () => {
+    let dias = document.getElementById("timeFilter").value;
+    let lim = new Date(); lim.setHours(0,0,0,0);
+    lim.setDate(lim.getDate() - parseInt(dias));
+    let iso = lim.toISOString().split('T')[0];
+    
+    let snap = await householdRef.collection("arquivo_permanente").where("date", ">=", iso).get();
+    let listaH = [], tsH = 0, trH = 0;
+    
+    snap.forEach(d => {
+        let e = d.data();
+        listaH.push(e);
+        if(e.payer === "Sara") tsH += e.amount; else trH += e.amount;
+    });
 
-  <script src="script.js"></script>
-</body>
-</html>
+    if(listaH.length === 0) return alert("Não existem despesas arquivadas neste período!");
+
+    let diffH = (tsH - trH) / 2;
+    let balancoH = diffH > 0 ? `Rui deve ${diffH.toFixed(2)}€ a Sara` : `Sara deve ${Math.abs(diffH).toFixed(2)}€ a Rui`;
+    if(Math.abs(diffH) < 0.01) balancoH = "Contas equilibradas.";
+
+    await gerarRelatorio(listaH, `RELATORIO_HISTORICO_${dias}_DIAS`, tsH, trH, balancoH);
+};
+
+// 4. FUNÇÃO DE RELATÓRIO (só é chamada manualmente)
+async function gerarRelatorio(lista, nome, s, r, balanco) {
+    const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
+    let corpo = [
+        new Paragraph({ children: [new TextRun({ text: nome.replace(/_/g," "), bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: "" }),
+        new Paragraph({ text: `Total de Gastos no Período: ${(s+r).toFixed(2)}€` }),
+        new Paragraph({ text: `Total Sara: ${s.toFixed(2)}€ | Total Rui: ${r.toFixed(2)}€` }),
+        new Paragraph({ children: [new TextRun({ text: `BALANÇO FINAL: ${balanco}`, bold: true, color: "FF0000" })] }),
+        new Paragraph({ text: "--------------------------------------------------------" }),
+        new Paragraph({ text: "" })
+    ];
+
+    lista.sort((a,b) => b.date.localeCompare(a.date)).forEach(e => {
+        corpo.push(new Paragraph({ text: `${e.date.split('-').reverse().join('/')} | ${e.payer}: ${e.description} - ${e.amount.toFixed(2)}€` }));
+    });
+    
+    const doc = new Document({ sections: [{ children: corpo }] });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${nome}_${new Date().toISOString().split('T')[0]}.docx`);
+}
+
+// RESTANTE LOGICA
+document.getElementById("expenseForm").onsubmit = async (e) => {
+    e.preventDefault();
+    var obj = { payer: document.getElementById("payer").value, amount: parseFloat(document.getElementById("amount").value), description: document.getElementById("description").value, date: new Date().toISOString().split('T')[0] };
+    await householdRef.collection("expenses").add(obj);
+    await householdRef.collection("arquivo_permanente").add(obj);
+    e.target.reset();
+};
+document.getElementById("btnToggleHist").onclick = () => {
+    var s = document.getElementById("hist-section");
+    s.style.display = s.style.display === "block" ? "none" : "block";
+    if(s.style.display === "block") consultarTotal(30);
+};
+async function apagarTudoPermanente() {
+    if(confirm("Deseja apagar TODO o histórico eterno?")) {
+        let snap = await householdRef.collection("arquivo_permanente").get();
+        let b = db.batch(); snap.docs.forEach(d => b.delete(d.ref));
+        await b.commit(); location.reload();
+    }
+}
