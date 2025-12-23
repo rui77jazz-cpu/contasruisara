@@ -14,6 +14,7 @@ var myId = localStorage.getItem("myId") || "dev_" + Math.random().toString(36).s
 localStorage.setItem("myId", myId);
 
 let dadosAtuais = { ts: 0, tr: 0, divida: "", lista: [] };
+let editandoId = null; // Variável para controlar edição
 
 // 1. ATUALIZAÇÃO DA LISTA NO ECRÃ
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
@@ -25,9 +26,19 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
         var e = doc.data();
         dadosAtuais.lista.push(e);
         if(e.payer === "Sara") dadosAtuais.ts += e.amount; else dadosAtuais.tr += e.amount;
+        
+        // ADICIONA BOTÕES DE EDITAR E APAGAR
         list.innerHTML += `<div class="expense-item">
-            <div class="exp-info"><span class="exp-date">${e.date.split('-').reverse().join('/')}</span><span><b>${e.payer}</b>: ${e.description}</span></div>
-            <b>${e.amount.toFixed(2)}€</b></div>`;
+            <div class="exp-info">
+                <span class="exp-date">${e.date.split('-').reverse().join('/')}</span>
+                <span><b>${e.payer}</b>: ${e.description}</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <b>${e.amount.toFixed(2)}€</b>
+                <button onclick="editarDespesa('${doc.id}', '${e.payer}', ${e.amount}, '${e.description}', '${e.date}')" style="background:#60a5fa;color:#fff;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:0.8rem">✏️</button>
+                <button onclick="apagarDespesa('${doc.id}')" style="background:#ef4444;color:#fff;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:0.8rem">🗑️</button>
+            </div>
+        </div>`;
     });
 
     document.getElementById("totalSum").textContent = (dadosAtuais.ts + dadosAtuais.tr).toFixed(2);
@@ -46,7 +57,7 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     }
 });
 
-// 2. LÓGICA DE ARQUIVAR (SALDAR) - SEM QUALQUER RELATÓRIO
+// 2. LÓGICA DE ARQUIVAR (SALDAR) - COPIA PARA O PERMANENTE ANTES DE LIMPAR
 householdRef.onSnapshot(async doc => {
     var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
     document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#dbeafe";
@@ -55,10 +66,17 @@ householdRef.onSnapshot(async doc => {
     document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#1e40af";
 
     if(v.sara && v.rui && dadosAtuais.lista.length > 0) {
-        // APENAS LIMPA A LISTA ATUAL, SEM GERAR RELATÓRIO
+        // COPIA PARA O ARQUIVO PERMANENTE ANTES DE LIMPAR
         var snap = await householdRef.collection("expenses").get();
         let b = db.batch();
-        snap.docs.forEach(d => b.delete(d.ref));
+        
+        // Copia cada despesa para o arquivo permanente
+        snap.docs.forEach(d => {
+            let dados = d.data();
+            householdRef.collection("arquivo_permanente").add(dados);
+            b.delete(d.ref); // Apaga da lista atual
+        });
+        
         await b.commit();
         await householdRef.update({ "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" } });
     }
@@ -75,7 +93,24 @@ async function votar(p) {
 document.getElementById("archiveSara").onclick = () => votar("Sara");
 document.getElementById("archiveRui").onclick = () => votar("Rui");
 
-// 3. CONSULTA E RELATÓRIO DO HISTÓRICO
+// 3. FUNÇÕES DE EDITAR E APAGAR
+async function editarDespesa(id, payer, amount, description, date) {
+    editandoId = id;
+    document.getElementById("payer").value = payer;
+    document.getElementById("amount").value = amount;
+    document.getElementById("description").value = description;
+    document.querySelector(".btn-save").textContent = "✓ Atualizar Despesa";
+    document.querySelector(".btn-save").style.background = "#f59e0b";
+    window.scrollTo(0, 0); // Scroll para o topo
+}
+
+async function apagarDespesa(id) {
+    if(confirm("Apagar esta despesa?")) {
+        await householdRef.collection("expenses").doc(id).delete();
+    }
+}
+
+// 4. CONSULTA E RELATÓRIO DO HISTÓRICO
 async function consultarTotal(dias) {
     let lim = new Date(); lim.setHours(0,0,0,0);
     lim.setDate(lim.getDate() - parseInt(dias));
@@ -110,7 +145,7 @@ document.getElementById("btnDownloadHist").onclick = async () => {
     await gerarRelatorio(listaH, `RELATORIO_HISTORICO_${dias}_DIAS`, tsH, trH, balancoH);
 };
 
-// 4. FUNÇÃO DE RELATÓRIO (só é chamada manualmente)
+// 5. FUNÇÃO DE RELATÓRIO (só é chamada manualmente)
 async function gerarRelatorio(lista, nome, s, r, balanco) {
     const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
     let corpo = [
@@ -132,19 +167,38 @@ async function gerarRelatorio(lista, nome, s, r, balanco) {
     saveAs(blob, `${nome}_${new Date().toISOString().split('T')[0]}.docx`);
 }
 
-// RESTANTE LOGICA
+// 6. SUBMIT DO FORMULÁRIO (ADICIONAR OU ATUALIZAR)
 document.getElementById("expenseForm").onsubmit = async (e) => {
     e.preventDefault();
-    var obj = { payer: document.getElementById("payer").value, amount: parseFloat(document.getElementById("amount").value), description: document.getElementById("description").value, date: new Date().toISOString().split('T')[0] };
-    await householdRef.collection("expenses").add(obj);
-    await householdRef.collection("arquivo_permanente").add(obj);
+    var obj = { 
+        payer: document.getElementById("payer").value, 
+        amount: parseFloat(document.getElementById("amount").value), 
+        description: document.getElementById("description").value, 
+        date: new Date().toISOString().split('T')[0] 
+    };
+    
+    if(editandoId) {
+        // ATUALIZAR despesa existente
+        await householdRef.collection("expenses").doc(editandoId).update(obj);
+        editandoId = null;
+        document.querySelector(".btn-save").textContent = "✓ Guardar";
+        document.querySelector(".btn-save").style.background = "#10b981";
+    } else {
+        // ADICIONAR nova despesa (SÓ na lista atual)
+        await householdRef.collection("expenses").add(obj);
+    }
+    
     e.target.reset();
 };
+
+// 7. TOGGLE DO HISTÓRICO
 document.getElementById("btnToggleHist").onclick = () => {
     var s = document.getElementById("hist-section");
     s.style.display = s.style.display === "block" ? "none" : "block";
     if(s.style.display === "block") consultarTotal(30);
 };
+
+// 8. APAGAR TODO O HISTÓRICO PERMANENTE
 async function apagarTudoPermanente() {
     if(confirm("Deseja apagar TODO o histórico eterno?")) {
         let snap = await householdRef.collection("arquivo_permanente").get();
