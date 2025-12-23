@@ -15,6 +15,7 @@ localStorage.setItem("myId", myId);
 
 let dadosAtuais = { ts: 0, tr: 0, divida: "", lista: [] };
 let editandoId = null;
+let arquivandoEmProgresso = false; // FLAG PARA EVITAR DUPLICAÇÕES
 
 // 1. ATUALIZAÇÃO DA LISTA NO ECRÃ
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
@@ -54,18 +55,11 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
         if(Math.abs(diff) < 0.01) { s.style.background="#d1fae5"; dadosAtuais.divida="Contas equilibradas."; }
         s.innerHTML = `<b>${dadosAtuais.divida}</b>`;
     }
-    
-    console.log("📋 Lista atualizada - Total de despesas:", dadosAtuais.lista.length);
 });
 
-// 2. LÓGICA DE ARQUIVAR (SALDAR) - COM DEBUG E RESET DOS BOTÕES
+// 2. LÓGICA DE ARQUIVAR (SALDAR) - CORRIGIDO PARA EVITAR DUPLICAÇÕES
 householdRef.onSnapshot(async doc => {
     var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
-    
-    console.log("🔍 DEBUG - Votos:", v);
-    console.log("🔍 DEBUG - Lista atual tem:", dadosAtuais.lista.length, "despesas");
-    console.log("🔍 DEBUG - Sara votou?", v.sara);
-    console.log("🔍 DEBUG - Rui votou?", v.rui);
     
     // ATUALIZA VISUAL DOS BOTÕES
     document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#d1fae5";
@@ -76,7 +70,9 @@ householdRef.onSnapshot(async doc => {
     document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#065f46";
     document.getElementById("archiveRui").style.border = v.rui ? "2px solid #10b981" : "2px solid #a7f3d0";
 
-    if(v.sara && v.rui && dadosAtuais.lista.length > 0) {
+    // EVITA DUPLICAÇÕES: Só arquiva se ambos votaram, há despesas E não está já a arquivar
+    if(v.sara && v.rui && dadosAtuais.lista.length > 0 && !arquivandoEmProgresso) {
+        arquivandoEmProgresso = true; // MARCA COMO "EM PROGRESSO"
         console.log("🔄 INICIANDO ARQUIVAMENTO...");
         console.log("📊 Número de despesas a arquivar:", dadosAtuais.lista.length);
         
@@ -85,21 +81,26 @@ householdRef.onSnapshot(async doc => {
             var snap = await householdRef.collection("expenses").get();
             console.log("📦 Documentos obtidos do Firebase:", snap.size);
             
-            let b = db.batch();
-            let contador = 0;
+            let despesasParaArquivar = [];
+            snap.docs.forEach(d => {
+                despesasParaArquivar.push(d.data());
+            });
             
-            // Copia cada despesa para o arquivo permanente
-            for (const d of snap.docs) {
-                let dados = d.data();
-                console.log(`✅ Copiando despesa ${contador + 1}:`, dados);
-                await householdRef.collection("arquivo_permanente").add(dados);
-                b.delete(d.ref);
-                contador++;
-            }
+            console.log(`📋 Preparadas ${despesasParaArquivar.length} despesas para arquivar`);
             
-            console.log(`✅ ${contador} despesas copiadas para arquivo_permanente`);
+            // ADICIONA AO ARQUIVO PERMANENTE (batch separado)
+            let batchArquivo = db.batch();
+            despesasParaArquivar.forEach(dados => {
+                let novoDocRef = householdRef.collection("arquivo_permanente").doc();
+                batchArquivo.set(novoDocRef, dados);
+            });
+            await batchArquivo.commit();
+            console.log(`✅ ${despesasParaArquivar.length} despesas copiadas para arquivo_permanente`);
             
-            await b.commit();
+            // APAGA DA LISTA ATUAL (batch separado)
+            let batchDelete = db.batch();
+            snap.docs.forEach(d => batchDelete.delete(d.ref));
+            await batchDelete.commit();
             console.log("✅ Lista atual limpa");
             
             // RESET COMPLETO DOS VOTOS
@@ -113,14 +114,18 @@ householdRef.onSnapshot(async doc => {
             });
             console.log("✅ Votos resetados");
             
-            alert(`✅ ${contador} despesas arquivadas com sucesso!\n\nContas saldadas! 🎉`);
+            alert(`✅ ${despesasParaArquivar.length} despesas arquivadas com sucesso!\n\nContas saldadas! 🎉`);
+            
+            // Aguarda 2 segundos antes de permitir novo arquivamento
+            setTimeout(() => {
+                arquivandoEmProgresso = false;
+                console.log("✅ Sistema pronto para novo arquivamento");
+            }, 2000);
+            
         } catch (error) {
             console.error("❌ ERRO ao arquivar:", error);
             alert("❌ Erro ao arquivar: " + error.message);
-        }
-    } else {
-        if(v.sara && v.rui) {
-            console.log("⚠️ Ambos votaram mas lista está vazia!");
+            arquivandoEmProgresso = false; // LIBERTA EM CASO DE ERRO
         }
     }
 });
