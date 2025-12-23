@@ -193,11 +193,9 @@ document.getElementById("btnDownloadHist").onclick = async () => {
     }
 
     console.log(`📄 Gerando relatório com ${listaH.length} despesas`);
-    let diffH = (tsH - trH) / 2;
-    let balancoH = diffH > 0 ? `Rui deve ${diffH.toFixed(2)}€ a Sara` : `Sara deve ${Math.abs(diffH).toFixed(2)}€ a Rui`;
-    if(Math.abs(diffH) < 0.01) balancoH = "Contas equilibradas.";
-
-    await gerarRelatorio(listaH, `RELATORIO_HISTORICO_${dias}_DIAS`, tsH, trH, balancoH);
+    
+    // SEM BALANÇO (null) - contas já foram saldadas ao arquivar
+    await gerarRelatorio(listaH, `RELATORIO_HISTORICO_${dias}_DIAS`, tsH, trH, null);
 };
 
 // 5. FUNÇÃO DE RELATÓRIO
@@ -208,11 +206,18 @@ async function gerarRelatorio(lista, nome, s, r, balanco) {
         new Paragraph({ children: [new TextRun({ text: nome.replace(/_/g," "), bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
         new Paragraph({ text: "" }),
         new Paragraph({ text: `Total de Gastos no Período: ${(s+r).toFixed(2)}€` }),
-        new Paragraph({ text: `Total Sara: ${s.toFixed(2)}€ | Total Rui: ${r.toFixed(2)}€` }),
-        new Paragraph({ children: [new TextRun({ text: `BALANÇO FINAL: ${balanco}`, bold: true, color: "FF0000" })] }),
-        new Paragraph({ text: "--------------------------------------------------------" }),
-        new Paragraph({ text: "" })
+        new Paragraph({ text: `Total Sara: ${s.toFixed(2)}€ | Total Rui: ${r.toFixed(2)}€` })
     ];
+    
+    // SÓ ADICIONA BALANÇO SE NÃO FOR NULL (ou seja, se não for relatório histórico)
+    if(balanco !== null) {
+        corpo.push(new Paragraph({ children: [new TextRun({ text: `BALANÇO FINAL: ${balanco}`, bold: true, color: "FF0000" })] }));
+    } else {
+        corpo.push(new Paragraph({ children: [new TextRun({ text: `CONTAS SALDADAS ✅`, bold: true, color: "00AA00" })] }));
+    }
+    
+    corpo.push(new Paragraph({ text: "--------------------------------------------------------" }));
+    corpo.push(new Paragraph({ text: "" }));
 
     lista.sort((a,b) => b.date.localeCompare(a.date)).forEach(e => {
         corpo.push(new Paragraph({ text: `${e.date.split('-').reverse().join('/')} | ${e.payer}: ${e.description} - ${e.amount.toFixed(2)}€` }));
