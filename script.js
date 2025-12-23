@@ -58,7 +58,7 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     console.log("📋 Lista atualizada - Total de despesas:", dadosAtuais.lista.length);
 });
 
-// 2. LÓGICA DE ARQUIVAR (SALDAR) - COM DEBUG
+// 2. LÓGICA DE ARQUIVAR (SALDAR) - COM DEBUG E RESET DOS BOTÕES
 householdRef.onSnapshot(async doc => {
     var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
     
@@ -67,10 +67,14 @@ householdRef.onSnapshot(async doc => {
     console.log("🔍 DEBUG - Sara votou?", v.sara);
     console.log("🔍 DEBUG - Rui votou?", v.rui);
     
-    document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#dbeafe";
-    document.getElementById("archiveSara").style.color = v.sara ? "#fff" : "#1e40af";
-    document.getElementById("archiveRui").style.background = v.rui ? "#10b981" : "#dbeafe";
-    document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#1e40af";
+    // ATUALIZA VISUAL DOS BOTÕES
+    document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#d1fae5";
+    document.getElementById("archiveSara").style.color = v.sara ? "#fff" : "#065f46";
+    document.getElementById("archiveSara").style.border = v.sara ? "2px solid #10b981" : "2px solid #a7f3d0";
+    
+    document.getElementById("archiveRui").style.background = v.rui ? "#10b981" : "#d1fae5";
+    document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#065f46";
+    document.getElementById("archiveRui").style.border = v.rui ? "2px solid #10b981" : "2px solid #a7f3d0";
 
     if(v.sara && v.rui && dadosAtuais.lista.length > 0) {
         console.log("🔄 INICIANDO ARQUIVAMENTO...");
@@ -98,10 +102,18 @@ householdRef.onSnapshot(async doc => {
             await b.commit();
             console.log("✅ Lista atual limpa");
             
-            await householdRef.update({ "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" } });
+            // RESET COMPLETO DOS VOTOS
+            await householdRef.update({ 
+                "archiveVotes": { 
+                    sara: false, 
+                    rui: false, 
+                    saraDev: "", 
+                    ruiDev: "" 
+                } 
+            });
             console.log("✅ Votos resetados");
             
-            alert(`✅ ${contador} despesas arquivadas com sucesso!`);
+            alert(`✅ ${contador} despesas arquivadas com sucesso!\n\nContas saldadas! 🎉`);
         } catch (error) {
             console.error("❌ ERRO ao arquivar:", error);
             alert("❌ Erro ao arquivar: " + error.message);
