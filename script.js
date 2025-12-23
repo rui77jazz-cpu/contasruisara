@@ -231,32 +231,84 @@ document.getElementById("btnDownloadHist").onclick = async () => {
     await gerarRelatorio(listaH, `RELATORIO_HISTORICO_${dias}_DIAS`, tsH, trH, null);
 };
 
-// 7. FUNÇÃO DE RELATÓRIO
+// 7. FUNÇÃO DE RELATÓRIO (COMPATÍVEL COM ANDROID MODERNO)
 async function gerarRelatorio(lista, nome, s, r, balanco) {
-    const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
-    let corpo = [
-        new Paragraph({ children: [new TextRun({ text: nome.replace(/_/g," "), bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: "" }),
-        new Paragraph({ text: `Total de Gastos no Período: ${(s+r).toFixed(2)}€` }),
-        new Paragraph({ text: `Total Sara: ${s.toFixed(2)}€ | Total Rui: ${r.toFixed(2)}€` })
-    ];
+    console.log("📝 Gerando documento Word...");
     
-    if(balanco !== null) {
-        corpo.push(new Paragraph({ children: [new TextRun({ text: `BALANÇO FINAL: ${balanco}`, bold: true, color: "FF0000" })] }));
-    } else {
-        corpo.push(new Paragraph({ children: [new TextRun({ text: `CONTAS SALDADAS ✅`, bold: true, color: "00AA00" })] }));
-    }
-    
-    corpo.push(new Paragraph({ text: "--------------------------------------------------------" }));
-    corpo.push(new Paragraph({ text: "" }));
+    try {
+        const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
+        let corpo = [
+            new Paragraph({ children: [new TextRun({ text: nome.replace(/_/g," "), bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: `Total de Gastos no Período: ${(s+r).toFixed(2)}€` }),
+            new Paragraph({ text: `Total Sara: ${s.toFixed(2)}€ | Total Rui: ${r.toFixed(2)}€` })
+        ];
+        
+        if(balanco !== null) {
+            corpo.push(new Paragraph({ children: [new TextRun({ text: `BALANÇO FINAL: ${balanco}`, bold: true, color: "FF0000" })] }));
+        } else {
+            corpo.push(new Paragraph({ children: [new TextRun({ text: `CONTAS SALDADAS ✅`, bold: true, color: "00AA00" })] }));
+        }
+        
+        corpo.push(new Paragraph({ text: "--------------------------------------------------------" }));
+        corpo.push(new Paragraph({ text: "" }));
 
-    lista.sort((a,b) => b.date.localeCompare(a.date)).forEach(e => {
-        corpo.push(new Paragraph({ text: `${e.date.split('-').reverse().join('/')} | ${e.payer}: ${e.description} - ${e.amount.toFixed(2)}€` }));
-    });
+        lista.sort((a,b) => b.date.localeCompare(a.date)).forEach(e => {
+            corpo.push(new Paragraph({ text: `${e.date.split('-').reverse().join('/')} | ${e.payer}: ${e.description} - ${e.amount.toFixed(2)}€` }));
+        });
+        
+        const doc = new Document({ sections: [{ children: corpo }] });
+        const blob = await Packer.toBlob(doc);
+        
+        // MÉTODO MODERNO - Funciona em Android 11+, Samsung, iOS, etc.
+        const nomeArquivo = `${nome}_${new Date().toISOString().split('T')[0]}.docx`;
+        
+        // Verifica se o navegador suporta a API moderna
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], nomeArquivo)] })) {
+            // OPÇÃO 1: Partilhar (Android moderno)
+            console.log("📱 Usando API de partilha nativa");
+            const file = new File([blob], nomeArquivo, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Relatório de Despesas',
+                    text: 'Relatório gerado pela app Sara & Rui'
+                });
+                console.log("✅ Partilha bem-sucedida");
+            } catch (err) {
+                console.log("❌ Partilha cancelada ou erro:", err);
+                // Se cancelou a partilha, tenta download tradicional
+                fazerDownloadTradicional(blob, nomeArquivo);
+            }
+        } else {
+            // OPÇÃO 2: Download tradicional (navegadores desktop, iOS Safari, Android antigo)
+            console.log("💻 Usando download tradicional");
+            fazerDownloadTradicional(blob, nomeArquivo);
+        }
+        
+    } catch (error) {
+        console.error("❌ Erro ao gerar relatório:", error);
+        alert("❌ Erro ao gerar relatório: " + error.message);
+    }
+}
+
+// Função auxiliar para download tradicional
+function fazerDownloadTradicional(blob, nomeArquivo) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    a.style.display = 'none';
     
-    const doc = new Document({ sections: [{ children: corpo }] });
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `${nome}_${new Date().toISOString().split('T')[0]}.docx`);
+    document.body.appendChild(a);
+    a.click();
+    
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log("✅ Download iniciado");
+    }, 100);
 }
 
 // 8. SUBMIT DO FORMULÁRIO
