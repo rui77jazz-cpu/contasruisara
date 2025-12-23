@@ -93,8 +93,8 @@ async function votar(p) {
 document.getElementById("archiveSara").onclick = () => votar("Sara");
 document.getElementById("archiveRui").onclick = () => votar("Rui");
 
-// 3. FUNÇÕES DE EDITAR E APAGAR
-async function editarDespesa(id, payer, amount, description, date) {
+// 3. FUNÇÕES DE EDITAR E APAGAR (GLOBAIS)
+window.editarDespesa = async function(id, payer, amount, description, date) {
     editandoId = id;
     document.getElementById("payer").value = payer;
     document.getElementById("amount").value = amount;
@@ -104,14 +104,14 @@ async function editarDespesa(id, payer, amount, description, date) {
     window.scrollTo(0, 0); // Scroll para o topo
 }
 
-async function apagarDespesa(id) {
+window.apagarDespesa = async function(id) {
     if(confirm("Apagar esta despesa?")) {
         await householdRef.collection("expenses").doc(id).delete();
     }
 }
 
 // 4. CONSULTA E RELATÓRIO DO HISTÓRICO
-async function consultarTotal(dias) {
+window.consultarTotal = async function(dias) {
     let lim = new Date(); lim.setHours(0,0,0,0);
     lim.setDate(lim.getDate() - parseInt(dias));
     let iso = lim.toISOString().split('T')[0];
@@ -199,7 +199,7 @@ document.getElementById("btnToggleHist").onclick = () => {
 };
 
 // 8. APAGAR TODO O HISTÓRICO PERMANENTE
-async function apagarTudoPermanente() {
+window.apagarTudoPermanente = async function() {
     if(confirm("Deseja apagar TODO o histórico eterno?")) {
         let snap = await householdRef.collection("arquivo_permanente").get();
         let b = db.batch(); snap.docs.forEach(d => b.delete(d.ref));
