@@ -15,7 +15,7 @@ localStorage.setItem("myId", myId);
 
 let dadosAtuais = { ts: 0, tr: 0, divida: "", lista: [] };
 let editandoId = null;
-let jaArquiveiNestaSessao = false; // FLAG LOCAL
+let jaArquiveiNestaSessao = false;
 
 // 1. ATUALIZAÇÃO DA LISTA NO ECRÃ
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
@@ -49,7 +49,7 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     if(dadosAtuais.lista.length === 0) {
         s.style.background = "#f1f5f9"; s.innerHTML = "Tudo saldado!";
         dadosAtuais.divida = "Sem dívidas pendentes.";
-        jaArquiveiNestaSessao = false; // RESET quando lista fica vazia
+        jaArquiveiNestaSessao = false;
     } else {
         s.style.background = "#fee2e2";
         dadosAtuais.divida = diff > 0 ? `👨 Rui deve ${diff.toFixed(2)}€ a 👩 Sara` : `👩 Sara deve ${Math.abs(diff).toFixed(2)}€ a 👨 Rui`;
@@ -58,7 +58,7 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     }
 });
 
-// 2. ATUALIZAÇÃO VISUAL DOS BOTÕES DE VOTO
+// 2. ATUALIZAÇÃO VISUAL DOS BOTÕES DE VOTO (COM TRANSACTION ATÓMICA)
 householdRef.onSnapshot(async doc => {
     var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
     var archiveLock = (doc.data() || {}).archiveLock || null;
@@ -72,28 +72,34 @@ householdRef.onSnapshot(async doc => {
     document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#065f46";
     document.getElementById("archiveRui").style.border = v.rui ? "2px solid #10b981" : "2px solid #a7f3d0";
     
-    // VERIFICA SE DEVE ARQUIVAR (com sistema de lock)
+    // VERIFICA SE DEVE ARQUIVAR (com transaction atómica)
     if(v.sara && v.rui && dadosAtuais.lista.length > 0 && !jaArquiveiNestaSessao && !archiveLock) {
         console.log("🔒 Tentando adquirir lock para arquivar...");
         
-        // Tenta adquirir o lock
         try {
-            await householdRef.update({
-                archiveLock: myId,
-                archiveLockTime: new Date().toISOString()
+            let conseguiuLock = await db.runTransaction(async (transaction) => {
+                let docAtual = await transaction.get(householdRef);
+                let lockAtual = (docAtual.data() || {}).archiveLock;
+                
+                if(lockAtual) {
+                    console.log("⏳ Lock já existe, outro dispositivo está a arquivar");
+                    return false;
+                }
+                
+                transaction.update(householdRef, {
+                    archiveLock: myId,
+                    archiveLockTime: new Date().toISOString()
+                });
+                
+                console.log("✅ Lock adquirido com sucesso!");
+                return true;
             });
             
-            // Verifica se FOI ESTE DISPOSITIVO que conseguiu o lock
-            let docVerifica = await householdRef.get();
-            let lockAtual = (docVerifica.data() || {}).archiveLock;
-            
-            if(lockAtual === myId) {
-                console.log("✅ Lock adquirido! Este dispositivo vai arquivar.");
+            if(conseguiuLock) {
                 jaArquiveiNestaSessao = true;
                 await arquivarDespesas();
-            } else {
-                console.log("⏳ Outro dispositivo já está a arquivar...");
             }
+            
         } catch (error) {
             console.log("❌ Erro ao tentar adquirir lock:", error);
         }
@@ -122,7 +128,7 @@ async function votar(p) {
 document.getElementById("archiveSara").onclick = () => votar("Sara");
 document.getElementById("archiveRui").onclick = () => votar("Rui");
 
-// 4. FUNÇÃO DE ARQUIVAR (CHAMADA APENAS PELO DISPOSITIVO QUE TEM O LOCK)
+// 4. FUNÇÃO DE ARQUIVAR
 async function arquivarDespesas() {
     console.log("🔄 ARQUIVANDO DESPESAS...");
     
@@ -145,7 +151,6 @@ async function arquivarDespesas() {
             despesasParaArquivar.push(d.data());
         });
         
-        // PASSO 1: Adicionar ao arquivo permanente
         let batchArquivo = db.batch();
         despesasParaArquivar.forEach(dados => {
             let novoDocRef = householdRef.collection("arquivo_permanente").doc();
@@ -154,13 +159,11 @@ async function arquivarDespesas() {
         await batchArquivo.commit();
         console.log(`✅ ${despesasParaArquivar.length} despesas copiadas para arquivo_permanente`);
         
-        // PASSO 2: Apagar da lista atual
         let batchDelete = db.batch();
         snap.docs.forEach(d => batchDelete.delete(d.ref));
         await batchDelete.commit();
         console.log("✅ Lista atual limpa");
         
-        // PASSO 3: Resetar votos E LIBERAR LOCK
         await householdRef.update({ 
             "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" },
             archiveLock: null,
@@ -172,7 +175,6 @@ async function arquivarDespesas() {
         
     } catch (error) {
         console.error("❌ ERRO ao arquivar:", error);
-        // Libera o lock em caso de erro
         await householdRef.update({ 
             archiveLock: null,
             archiveLockTime: null
@@ -181,9 +183,8 @@ async function arquivarDespesas() {
     }
 }
 
-// 5. FUNÇÕES DE EDITAR E APAGAR (GLOBAIS)
+// 5. FUNÇÕES DE EDITAR E APAGAR
 window.editarDespesa = async function(id, payer, amount, description, date) {
-    console.log("✏️ Editando despesa:", id);
     editandoId = id;
     document.getElementById("payer").value = payer;
     document.getElementById("amount").value = amount;
@@ -195,28 +196,23 @@ window.editarDespesa = async function(id, payer, amount, description, date) {
 
 window.apagarDespesa = async function(id) {
     if(confirm("Apagar esta despesa?")) {
-        console.log("🗑️ Apagando despesa:", id);
         await householdRef.collection("expenses").doc(id).delete();
-        console.log("✅ Despesa apagada");
     }
 }
 
 // 6. CONSULTA E RELATÓRIO DO HISTÓRICO
 window.consultarTotal = async function(dias) {
-    console.log(`📊 Consultando total dos últimos ${dias} dias`);
     let lim = new Date(); lim.setHours(0,0,0,0);
     lim.setDate(lim.getDate() - parseInt(dias));
     let iso = lim.toISOString().split('T')[0];
     
     let snap = await householdRef.collection("arquivo_permanente").where("date", ">=", iso).get();
-    console.log(`📦 Encontradas ${snap.size} despesas arquivadas`);
     let t = 0; snap.forEach(d => t += d.data().amount);
     document.getElementById("histTotal").textContent = t.toFixed(2);
 }
 
 document.getElementById("btnDownloadHist").onclick = async () => {
     let dias = document.getElementById("timeFilter").value;
-    console.log(`📥 Gerando relatório dos últimos ${dias} dias`);
     let lim = new Date(); lim.setHours(0,0,0,0);
     lim.setDate(lim.getDate() - parseInt(dias));
     let iso = lim.toISOString().split('T')[0];
@@ -230,18 +226,13 @@ document.getElementById("btnDownloadHist").onclick = async () => {
         if(e.payer === "Sara") tsH += e.amount; else trH += e.amount;
     });
 
-    if(listaH.length === 0) {
-        console.log("⚠️ Nenhuma despesa arquivada encontrada");
-        return alert("Não existem despesas arquivadas neste período!");
-    }
+    if(listaH.length === 0) return alert("Não existem despesas arquivadas neste período!");
 
-    console.log(`📄 Gerando relatório com ${listaH.length} despesas`);
     await gerarRelatorio(listaH, `RELATORIO_HISTORICO_${dias}_DIAS`, tsH, trH, null);
 };
 
 // 7. FUNÇÃO DE RELATÓRIO
 async function gerarRelatorio(lista, nome, s, r, balanco) {
-    console.log("📝 Gerando documento Word...");
     const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
     let corpo = [
         new Paragraph({ children: [new TextRun({ text: nome.replace(/_/g," "), bold: true, size: 28 })], alignment: AlignmentType.CENTER }),
@@ -266,7 +257,6 @@ async function gerarRelatorio(lista, nome, s, r, balanco) {
     const doc = new Document({ sections: [{ children: corpo }] });
     const blob = await Packer.toBlob(doc);
     saveAs(blob, `${nome}_${new Date().toISOString().split('T')[0]}.docx`);
-    console.log("✅ Documento gerado e download iniciado");
 }
 
 // 8. SUBMIT DO FORMULÁRIO
@@ -280,16 +270,12 @@ document.getElementById("expenseForm").onsubmit = async (e) => {
     };
     
     if(editandoId) {
-        console.log("✏️ Atualizando despesa:", editandoId);
         await householdRef.collection("expenses").doc(editandoId).update(obj);
         editandoId = null;
         document.querySelector(".btn-save").textContent = "✓ Guardar";
         document.querySelector(".btn-save").style.background = "#10b981";
-        console.log("✅ Despesa atualizada");
     } else {
-        console.log("➕ Adicionando nova despesa:", obj);
         await householdRef.collection("expenses").add(obj);
-        console.log("✅ Despesa adicionada (SÓ na lista atual)");
     }
     
     e.target.reset();
@@ -299,22 +285,16 @@ document.getElementById("expenseForm").onsubmit = async (e) => {
 document.getElementById("btnToggleHist").onclick = () => {
     var s = document.getElementById("hist-section");
     s.style.display = s.style.display === "block" ? "none" : "block";
-    if(s.style.display === "block") {
-        console.log("📊 Abrindo arquivo permanente");
-        consultarTotal(30);
-    }
+    if(s.style.display === "block") consultarTotal(30);
 };
 
 // 10. APAGAR TODO O HISTÓRICO PERMANENTE
 window.apagarTudoPermanente = async function() {
     if(confirm("Deseja apagar TODO o histórico eterno?")) {
-        console.log("🗑️ Limpando arquivo permanente...");
         let snap = await householdRef.collection("arquivo_permanente").get();
-        console.log(`📦 Encontradas ${snap.size} despesas para apagar`);
         let b = db.batch(); 
         snap.docs.forEach(d => b.delete(d.ref));
         await b.commit(); 
-        console.log("✅ Arquivo permanente limpo");
         location.reload();
     }
 }
