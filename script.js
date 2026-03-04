@@ -16,6 +16,7 @@ localStorage.setItem("myId", myId);
 let dadosAtuais = { ts: 0, tr: 0, divida: "", lista: [] };
 let editandoId = null;
 let jaArquiveiNestaSessao = false;
+const LOCK_TIMEOUT_MS = 30000; // 30 segundos — lock expira automaticamente
 
 // 1. ATUALIZAÇÃO DA LISTA NO ECRÃ
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
@@ -27,7 +28,7 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
         var e = doc.data();
         dadosAtuais.lista.push(e);
         if(e.payer === "Sara") dadosAtuais.ts += e.amount; else dadosAtuais.tr += e.amount;
-        
+
         list.innerHTML += `<div class="expense-item">
             <div class="exp-info">
                 <span class="exp-date">${e.date.split('-').reverse().join('/')}</span>
@@ -49,136 +50,154 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     if(dadosAtuais.lista.length === 0) {
         s.style.background = "#f1f5f9"; s.innerHTML = "Tudo saldado!";
         dadosAtuais.divida = "Sem dívidas pendentes.";
-        jaArquiveiNestaSessao = false;
+        jaArquiveiNestaSessao = false; // ✅ Reset ao limpar lista
     } else {
         s.style.background = "#fee2e2";
-        dadosAtuais.divida = diff > 0 ? `👨 Rui deve ${diff.toFixed(2)}€ a 👩 Sara` : `👩 Sara deve ${Math.abs(diff).toFixed(2)}€ a 👨 Rui`;
+        dadosAtuais.divida = diff > 0
+            ? `👨 Rui deve ${diff.toFixed(2)}€ a 👩 Sara`
+            : `👩 Sara deve ${Math.abs(diff).toFixed(2)}€ a 👨 Rui`;
         if(Math.abs(diff) < 0.01) { s.style.background="#d1fae5"; dadosAtuais.divida="Contas equilibradas."; }
         s.innerHTML = `<b>${dadosAtuais.divida}</b>`;
     }
 });
 
-// 2. ATUALIZAÇÃO VISUAL DOS BOTÕES DE VOTO (COM TRANSACTION ATÓMICA)
-householdRef.onSnapshot(async doc => {
-    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false };
-    var archiveLock = (doc.data() || {}).archiveLock || null;
-    
-    // Atualiza visual dos botões
+// 2. ATUALIZAÇÃO VISUAL DOS BOTÕES E TRIGGER DE ARQUIVO
+householdRef.onSnapshot(async docSnap => {
+    var data = docSnap.data() || {};
+    var v = data.archiveVotes || { sara: false, rui: false };
+    var archiveLock = data.archiveLock || null;
+    var archiveLockTime = data.archiveLockTime || null;
+
+    // Actualiza visual dos botões
     document.getElementById("archiveSara").style.background = v.sara ? "#10b981" : "#d1fae5";
-    document.getElementById("archiveSara").style.color = v.sara ? "#fff" : "#065f46";
-    document.getElementById("archiveSara").style.border = v.sara ? "2px solid #10b981" : "2px solid #a7f3d0";
-    
+    document.getElementById("archiveSara").style.color    = v.sara ? "#fff" : "#065f46";
+    document.getElementById("archiveSara").style.border   = v.sara ? "2px solid #10b981" : "2px solid #a7f3d0";
+
     document.getElementById("archiveRui").style.background = v.rui ? "#10b981" : "#d1fae5";
-    document.getElementById("archiveRui").style.color = v.rui ? "#fff" : "#065f46";
-    document.getElementById("archiveRui").style.border = v.rui ? "2px solid #10b981" : "2px solid #a7f3d0";
-    
-    // VERIFICA SE DEVE ARQUIVAR (com transaction atómica)
+    document.getElementById("archiveRui").style.color    = v.rui ? "#fff" : "#065f46";
+    document.getElementById("archiveRui").style.border   = v.rui ? "2px solid #10b981" : "2px solid #a7f3d0";
+
+    // ✅ VERIFICA SE LOCK ESTÁ EXPIRADO E LIBERTA-O
+    if(archiveLock && archiveLockTime) {
+        var lockAge = Date.now() - new Date(archiveLockTime).getTime();
+        if(lockAge > LOCK_TIMEOUT_MS) {
+            console.log("⏰ Lock expirado, a libertar...");
+            await householdRef.set({ archiveLock: null, archiveLockTime: null }, { merge: true });
+            return; // O onSnapshot vai disparar de novo sem lock
+        }
+    }
+
+    // ✅ VERIFICA SE DEVE ARQUIVAR
     if(v.sara && v.rui && dadosAtuais.lista.length > 0 && !jaArquiveiNestaSessao && !archiveLock) {
         console.log("🔒 Tentando adquirir lock para arquivar...");
-        
+
         try {
             let conseguiuLock = await db.runTransaction(async (transaction) => {
                 let docAtual = await transaction.get(householdRef);
                 let lockAtual = (docAtual.data() || {}).archiveLock;
-                
+
                 if(lockAtual) {
                     console.log("⏳ Lock já existe, outro dispositivo está a arquivar");
                     return false;
                 }
-                
+
                 transaction.update(householdRef, {
                     archiveLock: myId,
                     archiveLockTime: new Date().toISOString()
                 });
-                
-                console.log("✅ Lock adquirido com sucesso!");
                 return true;
             });
-            
+
             if(conseguiuLock) {
                 jaArquiveiNestaSessao = true;
                 await arquivarDespesas();
             }
-            
         } catch (error) {
-            console.log("❌ Erro ao tentar adquirir lock:", error);
+            console.error("❌ Erro ao tentar adquirir lock:", error);
+            alert("❌ Erro ao arquivar: " + error.message);
         }
     }
 });
 
-// 3. FUNÇÃO DE VOTAR
+// 3. FUNÇÃO DE VOTAR — cada aparelho só pode votar num
 async function votar(p) {
     console.log(`🗳️ Voto de ${p}`);
-    
-    var doc = await householdRef.get();
-    var v = (doc.data() || {}).archiveVotes || { sara: false, rui: false, saraDev: "", ruiDev: "" };
-    var c = p.toLowerCase(), o = (c === "sara") ? "rui" : "sara";
-    
-    if (v[o+"Dev"] === myId && !v[c]) {
-        return alert("Erro: Outro utilizador já votou aqui.");
+
+    try {
+        var docSnap = await householdRef.get();
+        var v = (docSnap.data() || {}).archiveVotes || { sara: false, rui: false, saraDevice: "", ruiDevice: "" };
+        var c = p.toLowerCase();
+        var outro = c === "sara" ? "rui" : "sara";
+
+        // Se já votou no outro, bloqueia
+        if(v[outro + "Device"] === myId && !v[c]) {
+            alert(`❌ Este aparelho já votou como ${outro === "sara" ? "Sara 👩" : "Rui 👨"}.\nCada aparelho só pode votar num.`);
+            return;
+        }
+
+        var novoVoto = !v[c];
+        var up = {};
+        up["archiveVotes." + c] = novoVoto;
+        up["archiveVotes." + c + "Device"] = novoVoto ? myId : "";
+
+        await householdRef.set(up, { merge: true });
+        console.log(`✅ Voto de ${p}: ${novoVoto}`);
+    } catch(err) {
+        console.error("❌ Erro ao votar:", err);
+        alert("❌ Erro ao registar voto: " + err.message);
     }
-    
-    var up = {};
-    up["archiveVotes."+c] = !v[c];
-    up["archiveVotes."+c+"Dev"] = v[c] ? "" : myId;
-    await householdRef.update(up);
-    console.log(`✅ Voto de ${p} registado`);
 }
 
 document.getElementById("archiveSara").onclick = () => votar("Sara");
-document.getElementById("archiveRui").onclick = () => votar("Rui");
+document.getElementById("archiveRui").onclick  = () => votar("Rui");
 
 // 4. FUNÇÃO DE ARQUIVAR
 async function arquivarDespesas() {
     console.log("🔄 ARQUIVANDO DESPESAS...");
-    
+
     try {
         var snap = await householdRef.collection("expenses").get();
-        
+
         if(snap.size === 0) {
             console.log("⚠️ Nenhuma despesa para arquivar");
-            await householdRef.update({ 
+            await householdRef.set({
                 archiveLock: null,
-                "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" }
-            });
+                archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" }
+            }, { merge: true });
             return;
         }
-        
+
         console.log(`📦 ${snap.size} despesas para arquivar`);
-        
-        let despesasParaArquivar = [];
-        snap.docs.forEach(d => {
-            despesasParaArquivar.push(d.data());
-        });
-        
+
+        // Copia para arquivo_permanente
         let batchArquivo = db.batch();
-        despesasParaArquivar.forEach(dados => {
+        snap.docs.forEach(d => {
             let novoDocRef = householdRef.collection("arquivo_permanente").doc();
-            batchArquivo.set(novoDocRef, dados);
+            batchArquivo.set(novoDocRef, d.data());
         });
         await batchArquivo.commit();
-        console.log(`✅ ${despesasParaArquivar.length} despesas copiadas para arquivo_permanente`);
-        
+        console.log(`✅ Copiadas para arquivo_permanente`);
+
+        // Apaga da lista atual
         let batchDelete = db.batch();
         snap.docs.forEach(d => batchDelete.delete(d.ref));
         await batchDelete.commit();
         console.log("✅ Lista atual limpa");
-        
-        await householdRef.update({ 
-            "archiveVotes": { sara: false, rui: false, saraDev: "", ruiDev: "" },
+
+        // Reset votos e lock
+        await householdRef.set({
+            archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" },
             archiveLock: null,
             archiveLockTime: null
-        });
+        }, { merge: true });
         console.log("✅ Votos resetados e lock liberado");
-        
-        alert(`✅ ${despesasParaArquivar.length} despesas arquivadas com sucesso!\n\nContas saldadas! 🎉`);
-        
+
+        alert(`✅ ${snap.size} despesas arquivadas com sucesso!\n\nContas saldadas! 🎉`);
+
     } catch (error) {
         console.error("❌ ERRO ao arquivar:", error);
-        await householdRef.update({ 
-            archiveLock: null,
-            archiveLockTime: null
-        });
+        // ✅ Liberta o lock mesmo em caso de erro
+        await householdRef.set({ archiveLock: null, archiveLockTime: null }, { merge: true });
         alert("❌ Erro ao arquivar: " + error.message);
     }
 }
@@ -205,7 +224,7 @@ window.consultarTotal = async function(dias) {
     let lim = new Date(); lim.setHours(0,0,0,0);
     lim.setDate(lim.getDate() - parseInt(dias));
     let iso = lim.toISOString().split('T')[0];
-    
+
     let snap = await householdRef.collection("arquivo_permanente").where("date", ">=", iso).get();
     let t = 0; snap.forEach(d => t += d.data().amount);
     document.getElementById("histTotal").textContent = t.toFixed(2);
@@ -216,10 +235,10 @@ document.getElementById("btnDownloadHist").onclick = async () => {
     let lim = new Date(); lim.setHours(0,0,0,0);
     lim.setDate(lim.getDate() - parseInt(dias));
     let iso = lim.toISOString().split('T')[0];
-    
+
     let snap = await householdRef.collection("arquivo_permanente").where("date", ">=", iso).get();
     let listaH = [], tsH = 0, trH = 0;
-    
+
     snap.forEach(d => {
         let e = d.data();
         listaH.push(e);
@@ -227,14 +246,13 @@ document.getElementById("btnDownloadHist").onclick = async () => {
     });
 
     if(listaH.length === 0) return alert("Não existem despesas arquivadas neste período!");
-
     await gerarRelatorio(listaH, `RELATORIO_HISTORICO_${dias}_DIAS`, tsH, trH, null);
 };
 
-// 7. FUNÇÃO DE RELATÓRIO (COMPATÍVEL COM ANDROID MODERNO)
+// 7. FUNÇÃO DE RELATÓRIO
 async function gerarRelatorio(lista, nome, s, r, balanco) {
     console.log("📝 Gerando documento Word...");
-    
+
     try {
         const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
         let corpo = [
@@ -243,84 +261,57 @@ async function gerarRelatorio(lista, nome, s, r, balanco) {
             new Paragraph({ text: `Total de Gastos no Período: ${(s+r).toFixed(2)}€` }),
             new Paragraph({ text: `Total Sara: ${s.toFixed(2)}€ | Total Rui: ${r.toFixed(2)}€` })
         ];
-        
-        if(balanco !== null) {
-            corpo.push(new Paragraph({ children: [new TextRun({ text: `BALANÇO FINAL: ${balanco}`, bold: true, color: "FF0000" })] }));
-        } else {
-            corpo.push(new Paragraph({ children: [new TextRun({ text: `CONTAS SALDADAS ✅`, bold: true, color: "00AA00" })] }));
-        }
-        
+
+        corpo.push(balanco !== null
+            ? new Paragraph({ children: [new TextRun({ text: `BALANÇO FINAL: ${balanco}`, bold: true, color: "FF0000" })] })
+            : new Paragraph({ children: [new TextRun({ text: `CONTAS SALDADAS ✅`, bold: true, color: "00AA00" })] })
+        );
+
         corpo.push(new Paragraph({ text: "--------------------------------------------------------" }));
         corpo.push(new Paragraph({ text: "" }));
 
         lista.sort((a,b) => b.date.localeCompare(a.date)).forEach(e => {
             corpo.push(new Paragraph({ text: `${e.date.split('-').reverse().join('/')} | ${e.payer}: ${e.description} - ${e.amount.toFixed(2)}€` }));
         });
-        
+
         const doc = new Document({ sections: [{ children: corpo }] });
         const blob = await Packer.toBlob(doc);
-        
-        // MÉTODO MODERNO - Funciona em Android 11+, Samsung, iOS, etc.
         const nomeArquivo = `${nome}_${new Date().toISOString().split('T')[0]}.docx`;
-        
-        // Verifica se o navegador suporta a API moderna
+
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], nomeArquivo)] })) {
-            // OPÇÃO 1: Partilhar (Android moderno)
-            console.log("📱 Usando API de partilha nativa");
             const file = new File([blob], nomeArquivo, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-            
             try {
-                await navigator.share({
-                    files: [file],
-                    title: 'Relatório de Despesas',
-                    text: 'Relatório gerado pela app Sara & Rui'
-                });
-                console.log("✅ Partilha bem-sucedida");
+                await navigator.share({ files: [file], title: 'Relatório de Despesas', text: 'Relatório gerado pela app Sara & Rui' });
             } catch (err) {
-                console.log("❌ Partilha cancelada ou erro:", err);
-                // Se cancelou a partilha, tenta download tradicional
                 fazerDownloadTradicional(blob, nomeArquivo);
             }
         } else {
-            // OPÇÃO 2: Download tradicional (navegadores desktop, iOS Safari, Android antigo)
-            console.log("💻 Usando download tradicional");
             fazerDownloadTradicional(blob, nomeArquivo);
         }
-        
     } catch (error) {
         console.error("❌ Erro ao gerar relatório:", error);
         alert("❌ Erro ao gerar relatório: " + error.message);
     }
 }
 
-// Função auxiliar para download tradicional
 function fazerDownloadTradicional(blob, nomeArquivo) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = nomeArquivo;
-    a.style.display = 'none';
-    
-    document.body.appendChild(a);
-    a.click();
-    
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        console.log("✅ Download iniciado");
-    }, 100);
+    a.href = url; a.download = nomeArquivo; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
 }
 
 // 8. SUBMIT DO FORMULÁRIO
 document.getElementById("expenseForm").onsubmit = async (e) => {
     e.preventDefault();
-    var obj = { 
-        payer: document.getElementById("payer").value, 
-        amount: parseFloat(document.getElementById("amount").value), 
-        description: document.getElementById("description").value, 
-        date: new Date().toISOString().split('T')[0] 
+    var obj = {
+        payer: document.getElementById("payer").value,
+        amount: parseFloat(document.getElementById("amount").value),
+        description: document.getElementById("description").value,
+        date: new Date().toISOString().split('T')[0]
     };
-    
+
     if(editandoId) {
         await householdRef.collection("expenses").doc(editandoId).update(obj);
         editandoId = null;
@@ -329,7 +320,6 @@ document.getElementById("expenseForm").onsubmit = async (e) => {
     } else {
         await householdRef.collection("expenses").add(obj);
     }
-    
     e.target.reset();
 };
 
@@ -344,9 +334,9 @@ document.getElementById("btnToggleHist").onclick = () => {
 window.apagarTudoPermanente = async function() {
     if(confirm("Deseja apagar TODO o histórico eterno?")) {
         let snap = await householdRef.collection("arquivo_permanente").get();
-        let b = db.batch(); 
+        let b = db.batch();
         snap.docs.forEach(d => b.delete(d.ref));
-        await b.commit(); 
+        await b.commit();
         location.reload();
     }
 }
