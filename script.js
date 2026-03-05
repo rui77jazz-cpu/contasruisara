@@ -18,12 +18,22 @@ let dadosAtuais = { ts: 0, tr: 0, lista: [] };
 let editandoId = null;
 let isArchiving = false;
 
-// ── AO ABRIR: limpa votos e lock antigos ─────────────────────────────────
-householdRef.set({
-    archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" },
-    archiveLock: null,
-    archiveLockTime: null
-}, { merge: true }).then(() => console.log("✅ Votos limpos ao abrir"));
+function mostrarErro(msg) {
+    var s = document.getElementById("settlements");
+    s.style.background = "#fee2e2";
+    s.innerHTML = "<b style='color:red'>❌ " + msg + "</b>";
+    console.error(msg);
+}
+
+// ── GARANTE QUE O DOCUMENTO EXISTE (sem apagar votos existentes) ──────────
+householdRef.get().then(docSnap => {
+    if (!docSnap.exists) {
+        return householdRef.set({
+            archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" }
+        });
+    }
+    // Documento já existe — não toca nos votos
+}).catch(err => mostrarErro("Firebase: " + err.message));
 
 // ── 1. LISTA DE DESPESAS ──────────────────────────────────────────────────
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
@@ -70,9 +80,9 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
             : "👩 Sara deve " + Math.abs(diff).toFixed(2) + "€ a 👨 Rui";
         s.innerHTML = "<b>" + msg + "</b>";
     }
-});
+}, err => mostrarErro("Despesas: " + err.message));
 
-// ── 2. VOTOS — visual + trigger de arquivo ───────────────────────────────
+// ── 2. VOTOS — visual + trigger arquivo ───────────────────────────────────
 householdRef.onSnapshot(docSnap => {
     var data = docSnap.data() || {};
     var v = data.archiveVotes || { sara: false, rui: false };
@@ -80,12 +90,11 @@ householdRef.onSnapshot(docSnap => {
     atualizarBotao("archiveSara", v.sara);
     atualizarBotao("archiveRui",  v.rui);
 
-    // Ambos votaram → arquivo automático
     if (v.sara && v.rui && !isArchiving) {
         isArchiving = true;
         arquivarDespesas();
     }
-});
+}, err => mostrarErro("Votos: " + err.message));
 
 function atualizarBotao(id, ativo) {
     var btn = document.getElementById(id);
@@ -102,7 +111,7 @@ async function votar(pessoa) {
         var c = pessoa.toLowerCase();
         var outro = c === "sara" ? "rui" : "sara";
 
-        // Bloqueia se já votou no outro
+        // Bloqueia se este aparelho já votou no outro
         if (v[outro + "Device"] === myId && !v[c]) {
             alert("❌ Este aparelho já votou como " + (outro === "sara" ? "Sara 👩" : "Rui 👨") + ".\nCada aparelho só pode votar num.");
             return;
@@ -113,9 +122,9 @@ async function votar(pessoa) {
         up["archiveVotes." + c]            = novoVoto;
         up["archiveVotes." + c + "Device"] = novoVoto ? myId : "";
         await householdRef.set(up, { merge: true });
-        console.log("✅ " + pessoa + ": " + novoVoto);
+        console.log("✅ Voto " + pessoa + ": " + novoVoto);
     } catch (err) {
-        alert("❌ Erro ao votar: " + err.message);
+        mostrarErro("Voto falhou: " + err.message);
     }
 }
 
@@ -126,7 +135,6 @@ document.getElementById("archiveRui").onclick  = () => votar("Rui");
 async function arquivarDespesas() {
     console.log("🔄 A arquivar...");
     try {
-        // Busca directamente do Firestore — não depende do estado local
         var snap = await householdRef.collection("expenses").get();
 
         if (snap.size === 0) {
@@ -134,14 +142,12 @@ async function arquivarDespesas() {
             return;
         }
 
-        // Copia para arquivo_permanente
         var batchCopia = db.batch();
         snap.docs.forEach(d => {
             batchCopia.set(householdRef.collection("arquivo_permanente").doc(), d.data());
         });
         await batchCopia.commit();
 
-        // Apaga da lista actual
         var batchApaga = db.batch();
         snap.docs.forEach(d => batchApaga.delete(d.ref));
         await batchApaga.commit();
@@ -150,17 +156,14 @@ async function arquivarDespesas() {
         alert("✅ " + snap.size + " despesas arquivadas!\n\nContas saldadas! 🎉");
 
     } catch (err) {
-        console.error("❌ Erro ao arquivar:", err);
         await resetarVotos();
-        alert("❌ Erro ao arquivar: " + err.message);
+        mostrarErro("Arquivo falhou: " + err.message);
     }
 }
 
 async function resetarVotos() {
     await householdRef.set({
-        archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" },
-        archiveLock: null,
-        archiveLockTime: null
+        archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" }
     }, { merge: true });
     isArchiving = false;
 }
@@ -241,7 +244,7 @@ async function gerarRelatorio(lista, nome, s, r, balanco) {
         document.body.appendChild(a); a.click();
         setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
     } catch (err) {
-        alert("❌ Erro ao gerar relatório: " + err.message);
+        mostrarErro("Relatório: " + err.message);
     }
 }
 
