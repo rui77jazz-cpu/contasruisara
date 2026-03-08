@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -14,7 +15,6 @@
     *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
     body{background:var(--bg);padding:1rem;color:#1e293b}
     
-    /* Título da aplicação */
     .app-title{
         text-align:center;
         font-size:2rem;
@@ -27,13 +27,8 @@
         box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);
     }
     
-    /* Caixa 1 - azul muito suave */
     .card-1{background:#eff6ff;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem;border:1px solid #dbeafe}
-    
-    /* Caixa 2 - verde muito suave */
     .card-2{background:#f0fdf4;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem;border:1px solid #dcfce7}
-    
-    /* Caixa 3 - rosa muito suave */
     .card-3{background:#fdf2f8;border-radius:1rem;padding:1.5rem;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:1rem;border:1px solid #fce7f3}
     
     .total-box{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e3a8a;padding:1.2rem;border-radius:1rem;text-align:center;margin-bottom:1rem;font-size:2rem;font-weight:bold;border:2px solid #93c5fd}
@@ -47,7 +42,6 @@
     .exp-info{display:flex;flex-direction:column}
     .exp-date{font-size:0.75rem;color:#6366f1;font-weight:bold}
     
-    /* Botões de ação mobile-friendly */
     .btn-action {
         background: #60a5fa;
         color: #fff;
@@ -63,48 +57,35 @@
         justify-content: center;
         flex-shrink: 0;
     }
+    .btn-action.delete { background: #ef4444; }
+    .btn-action:active { transform: scale(0.95); }
     
-    .btn-action.delete {
-        background: #ef4444;
-    }
-    
-    .btn-action:active {
-        transform: scale(0.95);
-    }
-    
-    /* Responsivo para telemóvel */
     @media (max-width: 768px) {
-        .expense-item {
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        
-        .exp-info {
-            flex: 1;
-            min-width: 100%;
-        }
-        
-        .expense-actions {
-            width: 100%;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .expense-actions b {
-            flex: 1;
-        }
+        .expense-item { flex-wrap: wrap; gap: 8px; }
+        .exp-info { flex: 1; min-width: 100%; }
+        .expense-actions { width: 100%; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+        .expense-actions b { flex: 1; }
     }
     
-    .v-btn{padding:15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;width:100%;background:#d1fae5;color:#065f46;border:2px solid #a7f3d0}
-    
+    .btn-archive {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+        border: none;
+        padding: 1rem;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1rem;
+        width: 100%;
+        cursor: pointer;
+        margin-top: 0.5rem;
+        box-shadow: 0 4px 6px -1px rgba(99,102,241,0.3);
+    }
+    .btn-archive:active { transform: scale(0.98); }
+
     #hist-section{display:none;margin-top:1rem;padding:1rem;background:#fef3c7;border-radius:12px;border:2px solid #fde68a}
     
     .filter-select{width:100%;padding:10px;border-radius:8px;border:2px solid #a5b4fc;color:#4338ca;font-weight:bold;margin-bottom:10px;background:#fff}
-    
     .total-gasto-label{font-size:1.1rem;font-weight:bold;text-align:center;padding:12px;background:#e9d5ff;border-radius:8px;margin-bottom:10px;color:#6b21a8;border:2px solid #d8b4fe}
-    
     .btn-report-hist{background:#60a5fa;color:#fff;border:none;padding:12px;border-radius:8px;width:100%;font-weight:bold;cursor:pointer;margin-top:5px}
     .btn-danger-link{background:none;border:none;color:var(--danger);font-size:0.7rem;text-decoration:underline;width:100%;margin-top:20px;cursor:pointer}
   </style>
@@ -141,10 +122,7 @@
     
     <div style="margin-top:1.5rem;padding-top:1rem;border-top:2px solid #6366f1">
       <p style="text-align:center;font-size:0.8rem;font-weight:bold;color:#6366f1;margin-bottom:10px">✅ ARQUIVAR E SALDAR</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button id="archiveSara" class="v-btn">Sara 👩</button>
-        <button id="archiveRui" class="v-btn">Rui 👨</button>
-      </div>
+      <button id="btnArquivar" class="btn-archive">🔒 Arquivar e Saldar Contas</button>
     </div>
 
     <div id="hist-section">
