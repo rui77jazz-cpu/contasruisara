@@ -11,12 +11,11 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
 var householdRef = db.collection("households").doc("sara_rui");
-var myId = localStorage.getItem("myId") || "dev_" + Math.random().toString(36).substr(2, 9);
-localStorage.setItem("myId", myId);
+
+var ARCHIVE_PASS = "123-pass";
 
 let dadosAtuais = { ts: 0, tr: 0, lista: [] };
 let editandoId = null;
-let isArchiving = false;
 
 function mostrarErro(msg) {
     var s = document.getElementById("settlements");
@@ -24,16 +23,6 @@ function mostrarErro(msg) {
     s.innerHTML = "<b style='color:red'>❌ " + msg + "</b>";
     console.error(msg);
 }
-
-// ── GARANTE QUE O DOCUMENTO EXISTE (sem apagar votos existentes) ──────────
-householdRef.get().then(docSnap => {
-    if (!docSnap.exists) {
-        return householdRef.set({
-            archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" }
-        });
-    }
-    // Documento já existe — não toca nos votos
-}).catch(err => mostrarErro("Firebase: " + err.message));
 
 // ── 1. LISTA DE DESPESAS ──────────────────────────────────────────────────
 householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
@@ -69,7 +58,6 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     if (dadosAtuais.lista.length === 0) {
         s.style.background = "#f1f5f9";
         s.innerHTML = "Tudo saldado!";
-        isArchiving = false;
     } else if (Math.abs(diff) < 0.01) {
         s.style.background = "#d1fae5";
         s.innerHTML = "<b>Contas equilibradas.</b>";
@@ -82,65 +70,28 @@ householdRef.collection("expenses").orderBy("date", "desc").onSnapshot(snap => {
     }
 }, err => mostrarErro("Despesas: " + err.message));
 
-// ── 2. VOTOS — visual + trigger arquivo ───────────────────────────────────
-householdRef.onSnapshot(docSnap => {
-    var data = docSnap.data() || {};
-    var v = data.archiveVotes || { sara: false, rui: false };
-
-    atualizarBotao("archiveSara", v.sara);
-    atualizarBotao("archiveRui",  v.rui);
-
-    if (v.sara && v.rui && !isArchiving) {
-        isArchiving = true;
-        arquivarDespesas();
+// ── 2. BOTÃO ARQUIVAR COM PALAVRA-PASSE ───────────────────────────────────
+document.getElementById("btnArquivar").onclick = function() {
+    if (dadosAtuais.lista.length === 0) {
+        alert("Não há despesas para arquivar.");
+        return;
     }
-}, err => mostrarErro("Votos: " + err.message));
-
-function atualizarBotao(id, ativo) {
-    var btn = document.getElementById(id);
-    btn.style.background = ativo ? "#10b981" : "#d1fae5";
-    btn.style.color       = ativo ? "#fff"    : "#065f46";
-    btn.style.border      = ativo ? "2px solid #10b981" : "2px solid #a7f3d0";
-}
-
-// ── 3. VOTAR ─────────────────────────────────────────────────────────────
-async function votar(pessoa) {
-    try {
-        var docSnap = await householdRef.get();
-        var v = (docSnap.data() || {}).archiveVotes || {};
-        var c = pessoa.toLowerCase();
-        var outro = c === "sara" ? "rui" : "sara";
-
-        // Bloqueia se este aparelho já votou no outro
-        if (v[outro + "Device"] === myId && !v[c]) {
-            alert("❌ Este aparelho já votou como " + (outro === "sara" ? "Sara 👩" : "Rui 👨") + ".\nCada aparelho só pode votar num.");
-            return;
-        }
-
-        var novoVoto = !v[c];
-        var up = {};
-        up["archiveVotes." + c]            = novoVoto;
-        up["archiveVotes." + c + "Device"] = novoVoto ? myId : "";
-        await householdRef.set(up, { merge: true });
-        console.log("✅ Voto " + pessoa + ": " + novoVoto);
-    } catch (err) {
-        mostrarErro("Voto falhou: " + err.message);
+    var pass = prompt("🔒 Introduz a palavra-passe para arquivar e saldar:");
+    if (pass === null) return; // cancelou
+    if (pass !== ARCHIVE_PASS) {
+        alert("❌ Palavra-passe incorreta.");
+        return;
     }
-}
+    arquivarDespesas();
+};
 
-document.getElementById("archiveSara").onclick = () => votar("Sara");
-document.getElementById("archiveRui").onclick  = () => votar("Rui");
-
-// ── 4. ARQUIVAR ───────────────────────────────────────────────────────────
+// ── 3. ARQUIVAR ───────────────────────────────────────────────────────────
 async function arquivarDespesas() {
     console.log("🔄 A arquivar...");
     try {
         var snap = await householdRef.collection("expenses").get();
 
-        if (snap.size === 0) {
-            await resetarVotos();
-            return;
-        }
+        if (snap.size === 0) return;
 
         var batchCopia = db.batch();
         snap.docs.forEach(d => {
@@ -152,23 +103,14 @@ async function arquivarDespesas() {
         snap.docs.forEach(d => batchApaga.delete(d.ref));
         await batchApaga.commit();
 
-        await resetarVotos();
         alert("✅ " + snap.size + " despesas arquivadas!\n\nContas saldadas! 🎉");
 
     } catch (err) {
-        await resetarVotos();
         mostrarErro("Arquivo falhou: " + err.message);
     }
 }
 
-async function resetarVotos() {
-    await householdRef.set({
-        archiveVotes: { sara: false, rui: false, saraDevice: "", ruiDevice: "" }
-    }, { merge: true });
-    isArchiving = false;
-}
-
-// ── 5. EDITAR / APAGAR ────────────────────────────────────────────────────
+// ── 4. EDITAR / APAGAR ────────────────────────────────────────────────────
 window.editarDespesa = async function(id, payer, amount, description, date) {
     editandoId = id;
     document.getElementById("payer").value = payer;
@@ -185,7 +127,7 @@ window.apagarDespesa = async function(id) {
     }
 };
 
-// ── 6. HISTÓRICO ──────────────────────────────────────────────────────────
+// ── 5. HISTÓRICO ──────────────────────────────────────────────────────────
 window.consultarTotal = async function(dias) {
     var lim = new Date(); lim.setHours(0,0,0,0);
     lim.setDate(lim.getDate() - parseInt(dias));
@@ -210,7 +152,7 @@ document.getElementById("btnDownloadHist").onclick = async () => {
     await gerarRelatorio(listaH, "RELATORIO_HISTORICO_" + dias + "_DIAS", tsH, trH, null);
 };
 
-// ── 7. RELATÓRIO WORD ─────────────────────────────────────────────────────
+// ── 6. RELATÓRIO WORD ─────────────────────────────────────────────────────
 async function gerarRelatorio(lista, nome, s, r, balanco) {
     try {
         const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
@@ -248,7 +190,7 @@ async function gerarRelatorio(lista, nome, s, r, balanco) {
     }
 }
 
-// ── 8. FORMULÁRIO ─────────────────────────────────────────────────────────
+// ── 7. FORMULÁRIO ─────────────────────────────────────────────────────────
 document.getElementById("expenseForm").onsubmit = async (e) => {
     e.preventDefault();
     var obj = {
@@ -268,14 +210,14 @@ document.getElementById("expenseForm").onsubmit = async (e) => {
     e.target.reset();
 };
 
-// ── 9. TOGGLE HISTÓRICO ───────────────────────────────────────────────────
+// ── 8. TOGGLE HISTÓRICO ───────────────────────────────────────────────────
 document.getElementById("btnToggleHist").onclick = () => {
     var s = document.getElementById("hist-section");
     s.style.display = s.style.display === "block" ? "none" : "block";
     if (s.style.display === "block") consultarTotal(30);
 };
 
-// ── 10. LIMPAR BASE DE DADOS ──────────────────────────────────────────────
+// ── 9. LIMPAR BASE DE DADOS ──────────────────────────────────────────────
 window.apagarTudoPermanente = async function() {
     if (confirm("Apagar TODO o histórico eterno?")) {
         var snap = await householdRef.collection("arquivo_permanente").get();
@@ -286,4 +228,4 @@ window.apagarTudoPermanente = async function() {
     }
 };
 
-console.log("✅ Script carregado | ID:", myId);
+console.log("✅ Script carregado");
